@@ -10,6 +10,7 @@ Production-oriented Android expense capture app for Vietnamese and English users
 - `design/mockup.html` - Figma-ready local mockup pack in HTML/CSS.
 - `backend/` - Self-hosted Node.js API backed by SQLite and local receipt storage.
 - `android/` - Kotlin Jetpack Compose Android app scaffold.
+- `ios/` - Native SwiftUI iOS app scaffold for Lucky Money / Túi thần tài.
 - `research/` - Downloaded Google Photos videos and extracted workflow frames.
 - `scripts/run-full-tests.ps1` - Runs backend tests, Android JVM tests, debug/release builds, and emulator smoke.
 - `scripts/push-to-github.ps1` - Initializes/pushes the source repo once Git and GitHub credentials are available.
@@ -40,6 +41,18 @@ cd android
 ```
 
 The Android app defaults to a placeholder API host. Configure the real Cloudflare Tunnel domain before Store release.
+
+iOS:
+
+```bash
+xcodebuild -project ios/LuckyMoney.xcodeproj \
+  -scheme LuckyMoney \
+  -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
+
+The iOS app requires macOS/Xcode to build. TestFlight upload requires an Apple Developer account and App Store Connect signing credentials.
 
 Full local verification:
 

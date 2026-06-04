@@ -21,3 +21,8 @@ emulator-*.png
 window.xml
 test-results/
 release/
+
+ios/**/xcuserdata/
+ios/**/DerivedData/
+ios/**/.build/
+*.xcresult/

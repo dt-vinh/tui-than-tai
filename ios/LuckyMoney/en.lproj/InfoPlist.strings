@@ -1,0 +1,3 @@
+CFBundleDisplayName = "Lucky Money";
+NSCameraUsageDescription = "Lucky Money uses the camera to capture receipts and expense objects.";
+NSPhotoLibraryUsageDescription = "Lucky Money imports receipt photos from your photo library.";

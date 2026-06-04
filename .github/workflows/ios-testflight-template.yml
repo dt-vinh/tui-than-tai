@@ -1,0 +1,29 @@
+name: iOS TestFlight Template
+
+on:
+  workflow_dispatch:
+    inputs:
+      enabled:
+        description: "Set to YES only after Apple Developer signing secrets are configured."
+        required: true
+        default: "NO"
+
+jobs:
+  testflight:
+    if: ${{ github.event.inputs.enabled == 'YES' }}
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Missing signing guard
+        run: |
+          test -n "${{ secrets.APP_STORE_CONNECT_KEY_ID }}"
+          test -n "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+          test -n "${{ secrets.APP_STORE_CONNECT_API_KEY }}"
+          test -n "${{ secrets.APPLE_TEAM_ID }}"
+
+      - name: Archive placeholder
+        run: |
+          echo "Configure certificates/profiles or fastlane match before enabling upload."
+          exit 1

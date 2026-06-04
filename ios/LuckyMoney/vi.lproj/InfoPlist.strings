@@ -1,0 +1,3 @@
+CFBundleDisplayName = "Túi thần tài";
+NSCameraUsageDescription = "Túi thần tài dùng camera để chụp hóa đơn và đồ vật chi tiêu.";
+NSPhotoLibraryUsageDescription = "Túi thần tài nhập ảnh hóa đơn từ thư viện ảnh của bạn.";
