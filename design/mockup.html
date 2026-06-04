@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tui Than Tai Mockups</title>
+  <style>
+    :root {
+      --ink: #1d2320;
+      --muted: #65716b;
+      --line: #dce4df;
+      --paper: #f7faf8;
+      --surface: #ffffff;
+      --primary: #0f8f5f;
+      --primary-ink: #ffffff;
+      --accent: #f5b84b;
+      --danger: #c94343;
+      --blue: #3f7fd7;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+    }
+    header {
+      padding: 28px 32px 12px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      color: var(--muted);
+      margin: 0;
+      max-width: 760px;
+      line-height: 1.5;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+      gap: 24px;
+      padding: 24px 32px 40px;
+    }
+    .phone {
+      width: 320px;
+      min-height: 690px;
+      border: 1px solid #ccd7d0;
+      border-radius: 32px;
+      background: #fdfefd;
+      box-shadow: 0 18px 40px rgba(31, 48, 39, .12);
+      overflow: hidden;
+      justify-self: center;
+      position: relative;
+    }
+    .status {
+      height: 28px;
+      padding: 8px 18px 0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .content {
+      padding: 8px 18px 92px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: 750;
+      letter-spacing: 0;
+      line-height: 1.15;
+    }
+    .chip-row,
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .chip.active {
+      background: #e4f5ed;
+      border-color: #9bd7bb;
+      color: #08704a;
+      font-weight: 650;
+    }
+    .summary {
+      background: linear-gradient(135deg, #0f8f5f, #2aa374);
+      color: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 12px 0 16px;
+    }
+    .summary .label {
+      opacity: .86;
+      font-size: 12px;
+    }
+    .summary .amount {
+      font-size: 30px;
+      font-weight: 800;
+      margin-top: 6px;
+      letter-spacing: 0;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #eff5f1;
+      color: #0d6f4c;
+      font-weight: 800;
+      flex: none;
+    }
+    .row-main {
+      min-width: 0;
+      flex: 1;
+    }
+    .row-title {
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .row-sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+    .money {
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .fab {
+      position: absolute;
+      right: 22px;
+      bottom: 76px;
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      background: var(--primary);
+      color: white;
+      border: 0;
+      font-size: 28px;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 12px 22px rgba(15, 143, 95, .32);
+    }
+    .nav {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: white;
+      border-top: 1px solid var(--line);
+      padding: 8px 8px 12px;
+    }
+    .nav div {
+      text-align: center;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .nav .active {
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .camera {
+      background: #151817;
+      color: white;
+    }
+    .camera .status,
+    .camera .row-sub {
+      color: rgba(255,255,255,.65);
+    }
+    .preview {
+      margin: 16px 10px;
+      height: 420px;
+      border-radius: 8px;
+      background:
+        linear-gradient(rgba(255,255,255,.08), rgba(255,255,255,.08)),
+        radial-gradient(circle at 50% 42%, rgba(255,255,255,.26), transparent 18%),
+        linear-gradient(160deg, #555b58, #1a1f1d 58%, #070807);
+      position: relative;
+      overflow: hidden;
+    }
+    .scan-frame {
+      position: absolute;
+      inset: 86px 42px;
+      border: 2px solid rgba(255,255,255,.85);
+      border-radius: 8px;
+    }
+    .camera-actions {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 14px 26px;
+    }
+    .shutter {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      border: 5px solid white;
+      background: var(--primary);
+    }
+    .round-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(255,255,255,.12);
+      color: white;
+    }
+    .field {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      padding: 10px 12px;
+      margin: 10px 0;
+    }
+    .field label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .field strong,
+    .field input {
+      display: block;
+      font-size: 18px;
+      width: 100%;
+      border: 0;
+      outline: 0;
+      font-weight: 750;
+      color: var(--ink);
+      background: transparent;
+      box-sizing: border-box;
+    }
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .cat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 4px;
+      text-align: center;
+      font-size: 11px;
+      background: white;
+      min-height: 52px;
+    }
+    .cat.active {
+      border-color: #6fc89e;
+      background: #e9f8f0;
+      color: #08704a;
+      font-weight: 700;
+    }
+    .primary-btn {
+      width: 100%;
+      min-height: 48px;
+      border-radius: 8px;
+      border: 0;
+      background: var(--primary);
+      color: white;
+      font-size: 15px;
+      font-weight: 800;
+      margin-top: 12px;
+    }
+    .bar {
+      height: 10px;
+      border-radius: 999px;
+      background: #e8eee9;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .bar span {
+      display: block;
+      height: 100%;
+      background: var(--primary);
+    }
+    .language-list .row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 10px 0;
+      background: white;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tui Than Tai / Lucky Wallet</h1>
+    <p class="subtitle">Figma-ready local mockup frames for the first Android build. These frames map to the PRD screens and can be recreated in Figma with Material 3 components.</p>
+  </header>
+
+  <main class="board">
+    <section class="phone">
+      <div class="status"><span>13:08</span><span>4G 82%</span></div>
+      <div class="content">
+        <div class="topbar">
+          <div>
+          <div class="row-sub">Xin chào</div>
+            <div class="title">Túi thần tài</div>
+          </div>
+          <div class="chip active">VND</div>
+        </div>
+        <div class="chip-row">
+          <div class="chip active">Thang 6</div>
+          <div class="chip">Vi ca nhan</div>
+          <div class="chip">Dang sync 2</div>
+        </div>
+        <div class="summary">
+          <div class="label">Tổng chi tháng này</div>
+          <div class="amount">1.285.000 d</div>
+        </div>
+        <div class="row">
+          <div class="icon">A</div>
+          <div class="row-main">
+            <div class="row-title">Bánh mì sáng</div>
+            <div class="row-sub">Ăn uống · Hôm nay</div>
+          </div>
+          <div class="money">20.000 d</div>
+        </div>
+        <div class="row">
+          <div class="icon">C</div>
+          <div class="row-main">
+            <div class="row-title">Cafe</div>
+            <div class="row-sub">Cafe · Đang chờ sync</div>
+          </div>
+          <div class="money">45.000 d</div>
+        </div>
+        <div class="row">
+          <div class="icon">H</div>
+          <div class="row-main">
+            <div class="row-title">Hóa đơn siêu thị</div>
+            <div class="row-sub">Mua sắm · Đã quét bill</div>
+          </div>
+          <div class="money">385.250 d</div>
+        </div>
+      </div>
+      <button class="fab">+</button>
+      <nav class="nav"><div class="active">Home</div><div>Report</div><div>Sync</div><div>Settings</div></nav>
+    </section>
+
+    <section class="phone camera">
+      <div class="status"><span>13:09</span><span>4G 82%</span></div>
+      <div class="content">
+        <div class="topbar">
+          <button class="round-btn">x</button>
+          <div class="title">Scan</div>
+          <button class="round-btn">i</button>
+        </div>
+        <div class="preview">
+          <div class="scan-frame"></div>
+        </div>
+        <div class="chip-row">
+          <div class="chip active">Receipt</div>
+          <div class="chip">Object</div>
+          <div class="chip">Manual</div>
+        </div>
+        <div class="camera-actions">
+          <button class="round-btn">img</button>
+          <button class="shutter"></button>
+          <button class="round-btn">zap</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="phone">
+      <div class="status"><span>13:10</span><span>Wi-Fi 82%</span></div>
+      <div class="content">
+        <div class="topbar">
+          <div class="title">Review</div>
+          <div class="chip active">OCR</div>
+        </div>
+        <div class="field">
+          <label>Amount</label>
+          <strong>385.250 d</strong>
+        </div>
+        <div class="field">
+          <label>Title</label>
+          <strong>Hoa don sieu thi</strong>
+        </div>
+        <div class="category-grid">
+          <div class="cat active">Food</div>
+          <div class="cat">Coffee</div>
+          <div class="cat">Home</div>
+          <div class="cat">Travel</div>
+          <div class="cat">Bills</div>
+          <div class="cat">Family</div>
+          <div class="cat">Gifts</div>
+          <div class="cat">Other</div>
+        </div>
+        <div class="field"><label>Wallet</label><strong>Vi ca nhan</strong></div>
+        <div class="field"><label>Date</label><strong>03/06/2026</strong></div>
+        <div class="field"><label>Note</label><input value="Detected from receipt"></div>
+        <button class="primary-btn">Save expense</button>
+      </div>
+      <nav class="nav"><div>Home</div><div>Report</div><div class="active">Sync</div><div>Settings</div></nav>
+    </section>
+
+    <section class="phone">
+      <div class="status"><span>13:12</span><span>Wi-Fi 82%</span></div>
+      <div class="content">
+        <div class="topbar">
+          <div class="title">Reports</div>
+          <div class="chip active">June</div>
+        </div>
+        <div class="summary">
+          <div class="label">Monthly total</div>
+          <div class="amount">1.285.000 d</div>
+        </div>
+        <div class="row">
+          <div class="icon">A</div>
+          <div class="row-main">
+            <div class="row-title">Food & drink</div>
+            <div class="bar"><span style="width:76%"></span></div>
+          </div>
+          <div class="money">620.000 d</div>
+        </div>
+        <div class="row">
+          <div class="icon">M</div>
+          <div class="row-main">
+            <div class="row-title">Shopping</div>
+            <div class="bar"><span style="width:42%"></span></div>
+          </div>
+          <div class="money">340.000 d</div>
+        </div>
+        <div class="row">
+          <div class="icon">D</div>
+          <div class="row-main">
+            <div class="row-title">Transport</div>
+            <div class="bar"><span style="width:28%"></span></div>
+          </div>
+          <div class="money">185.000 d</div>
+        </div>
+      </div>
+      <nav class="nav"><div>Home</div><div class="active">Report</div><div>Sync</div><div>Settings</div></nav>
+    </section>
+
+    <section class="phone">
+      <div class="status"><span>13:15</span><span>Wi-Fi 82%</span></div>
+      <div class="content">
+        <div class="topbar">
+          <div class="title">Settings</div>
+        </div>
+        <div class="language-list">
+          <div class="row">
+            <div class="row-main">
+            <div class="row-title">Tiếng Việt</div>
+              <div class="row-sub">Đang sử dụng</div>
+            </div>
+            <div class="money">✓</div>
+          </div>
+          <div class="row">
+            <div class="row-main">
+              <div class="row-title">English</div>
+              <div class="row-sub">Lucky Wallet</div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main">
+              <div class="row-title">Backend</div>
+              <div class="row-sub">https://api.your-domain.com</div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-main">
+              <div class="row-title">Sync status</div>
+              <div class="row-sub">2 pending expenses</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <nav class="nav"><div>Home</div><div>Report</div><div>Sync</div><div class="active">Settings</div></nav>
+    </section>
+  </main>
+</body>
+</html>

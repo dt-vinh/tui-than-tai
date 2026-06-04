@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">Lucky Wallet</string>
+    <string name="home">Home</string>
+    <string name="reports">Reports</string>
+    <string name="sync">Sync</string>
+    <string name="settings">Settings</string>
+    <string name="hello">Hello</string>
+    <string name="month_total">This month</string>
+    <string name="capture">Capture</string>
+    <string name="manual_entry">Manual entry</string>
+    <string name="review_expense">Review expense</string>
+    <string name="amount">Amount</string>
+    <string name="title">Title</string>
+    <string name="category">Category</string>
+    <string name="wallet">Wallet</string>
+    <string name="note">Note</string>
+    <string name="save_expense">Save expense</string>
+    <string name="camera_permission">Camera permission is required for photo capture.</string>
+    <string name="language">Language</string>
+    <string name="vietnamese">Vietnamese</string>
+    <string name="english">English</string>
+    <string name="system_default">System default</string>
+    <string name="pending_sync">Pending sync</string>
+    <string name="empty_state">No expenses yet</string>
+    <string name="backend_url">Backend URL</string>
+</resources>

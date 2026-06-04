@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">Túi thần tài</string>
+    <string name="home">Trang chủ</string>
+    <string name="reports">Báo cáo</string>
+    <string name="sync">Đồng bộ</string>
+    <string name="settings">Cài đặt</string>
+    <string name="hello">Xin chào</string>
+    <string name="month_total">Tháng này</string>
+    <string name="capture">Chụp ảnh</string>
+    <string name="manual_entry">Nhập tay</string>
+    <string name="review_expense">Xem lại chi tiêu</string>
+    <string name="amount">Số tiền</string>
+    <string name="title">Nội dung</string>
+    <string name="category">Hạng mục</string>
+    <string name="wallet">Ví</string>
+    <string name="note">Ghi chú</string>
+    <string name="save_expense">Lưu chi tiêu</string>
+    <string name="camera_permission">Cần quyền camera để chụp ảnh chi tiêu.</string>
+    <string name="language">Ngôn ngữ</string>
+    <string name="vietnamese">Tiếng Việt</string>
+    <string name="english">English</string>
+    <string name="system_default">Theo hệ thống</string>
+    <string name="pending_sync">Chờ đồng bộ</string>
+    <string name="empty_state">Chưa có khoản chi</string>
+    <string name="backend_url">Địa chỉ backend</string>
+</resources>
