@@ -4,5 +4,5 @@ import android.app.Application
 import com.phuongnn14.tuithantai.data.AppDatabase
 
 class TuiThanTaiApp : Application() {
-    val database: AppDatabase by lazy { AppDatabase.get(this) }
+    val database: AppDatabase by lazy { AppDatabase.getDatabase(this) }
 }

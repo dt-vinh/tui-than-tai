@@ -1,16 +1,17 @@
 package com.phuongnn14.tuithantai.ml
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.label.ImageLabeling
-import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import android.util.Log
+import com.phuongnn14.tuithantai.BuildConfig
 import com.phuongnn14.tuithantai.data.CategoryEntity
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.tasks.await
+import com.phuongnn14.tuithantai.ocr.MoneyParser
+import com.phuongnn14.tuithantai.ocr.OcrAnalyzer
+import com.phuongnn14.tuithantai.ocr.OcrResult
+import com.phuongnn14.tuithantai.ocr.engine.GeminiReceiptAnalyzer
+import com.phuongnn14.tuithantai.ocr.engine.OcrEngineSelector
 import java.text.Normalizer
 
 data class ExpenseSuggestion(
@@ -18,53 +19,97 @@ data class ExpenseSuggestion(
     val amount: Long = 0,
     val categoryId: String = "other",
     val ocrText: String = "",
-    val labels: List<String> = emptyList()
+    val labels: List<String> = emptyList(),
+    val needsReview: Boolean = false,
+    val reviewFields: List<String> = emptyList(),
+    val ocrEngine: String = "",
+    val ocrConfidence: Float = 0f,
+    val ocrElapsedMs: Long = 0L
 )
 
-class ExpenseAnalyzer {
+class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
+    companion object {
+        // Below this local parser confidence → trigger Gemini fallback
+        private const val GEMINI_FALLBACK_THRESHOLD = 0.55
+    }
+    private val ocrAnalyzer = OcrAnalyzer()
+    private val gemini by lazy { GeminiReceiptAnalyzer(BuildConfig.GEMINI_API_KEY) }
+
     suspend fun analyze(
         context: Context,
         imageUri: Uri,
-        categories: List<CategoryEntity>
-    ): ExpenseSuggestion = coroutineScope {
-        val image = InputImage.fromFilePath(context, imageUri)
-        val textJob = async {
-            TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                .process(image)
-                .await()
-                .text
+        @Suppress("UNUSED_PARAMETER") categories: List<CategoryEntity>
+    ): ExpenseSuggestion {
+        val bitmap = context.contentResolver.openInputStream(imageUri)?.use { stream ->
+            BitmapFactory.decodeStream(stream)
+        } ?: return ExpenseSuggestion(needsReview = true, reviewFields = listOf("total_amount"))
+
+        val selector = engineSelector ?: OcrEngineSelector(context)
+        val engineResult = runCatching { selector.recognize(bitmap) }
+            .getOrElse { e ->
+                Log.e("ExpenseAnalyzer", "OCR failed: ${e.message}")
+                return ExpenseSuggestion(needsReview = true, reviewFields = listOf("total_amount"))
+            }
+
+        Log.d(
+            "OcrBenchmark",
+            "engine=${engineResult.engineName} " +
+            "elapsed=${engineResult.elapsedMs}ms " +
+            "imgSize=${bitmap.width}x${bitmap.height} " +
+            "textLen=${engineResult.rawText.length} " +
+            "lines=${engineResult.lines.size} " +
+            "engineConf=${engineResult.confidence}"
+        )
+        // Log raw OCR text để debug amount parsing
+        engineResult.rawText.lines().forEachIndexed { i, line ->
+            Log.d("OcrRawText", "[$i] $line")
         }
-        val labelJob = async {
-            ImageLabeling.getClient(ImageLabelerOptions.DEFAULT_OPTIONS)
-                .process(image)
-                .await()
-                .map { it.text }
-        }
-        val ocrText = runCatching { textJob.await() }.getOrDefault("")
-        val labels = runCatching { labelJob.await() }.getOrDefault(emptyList())
-        val amount = extractAmount(ocrText)
-        val category = inferCategory(ocrText, labels, categories)
-        ExpenseSuggestion(
-            title = inferTitle(ocrText, labels),
-            amount = amount,
-            categoryId = category,
-            ocrText = ocrText,
-            labels = labels
+
+        val result = ocrAnalyzer.analyze(engineResult.rawText)
+
+        Log.d(
+            "OcrBenchmark",
+            "total=${result.totalAmount} " +
+            "category=${result.categoryId} " +
+            "parserConf=${result.confidence} " +
+            "needsReview=${result.needsUserReview} " +
+            "reviewFields=${result.reviewFields}"
+        )
+
+        // Gemini fallback: when local OCR/parser is uncertain
+        val finalResult = if (shouldUseGeminiFallback(result)) {
+            Log.d("OcrBenchmark", "local confidence low — trying Gemini fallback")
+            gemini.analyze(bitmap)?.also {
+                Log.d("OcrBenchmark", "Gemini result: total=${it.totalAmount} conf=${it.confidence}")
+            } ?: result
+        } else result
+
+        return ExpenseSuggestion(
+            title = finalResult.merchantName ?: inferTitle(engineResult.rawText, emptyList()),
+            amount = finalResult.totalAmount?.toLong() ?: 0L,
+            categoryId = finalResult.categoryId,
+            ocrText = engineResult.rawText,
+            labels = emptyList(),
+            needsReview = finalResult.needsUserReview,
+            reviewFields = finalResult.reviewFields,
+            ocrEngine = engineResult.engineName + if (finalResult !== result) "+gemini" else "",
+            ocrConfidence = engineResult.confidence,
+            ocrElapsedMs = engineResult.elapsedMs
         )
     }
 
+    // Kept for unit-test compatibility
     fun extractAmount(text: String): Long {
-        val normalized = text.replace(',', '.')
-        val candidates = Regex("""(?i)(?:total|tong|thanh\s*toan|paid|cong|vnd|đ|d)?\s*([0-9]{1,3}(?:[.\s][0-9]{3})+|[0-9]{4,9})\s*(?:vnd|đ|d)?""")
-            .findAll(normalized)
-            .mapNotNull { match ->
-                match.groupValues.getOrNull(1)
-                    ?.replace(Regex("""[.\s]"""), "")
-                    ?.toLongOrNull()
+        val lines = text.lines()
+        var best = 0L
+        for (line in lines) {
+            for (token in line.split(Regex("""\s+"""))) {
+                val parsed = MoneyParser.parse(token) ?: continue
+                val v = parsed.amount.toLong()
+                if (v > best) best = v
             }
-            .filter { it in 1_000..99_999_999 }
-            .toList()
-        return candidates.maxOrNull() ?: 0
+        }
+        return best
     }
 
     fun inferTitle(text: String, labels: List<String>): String {
@@ -83,16 +128,25 @@ class ExpenseAnalyzer {
         var bestId = "other"
         var bestScore = 0
         for (category in categories) {
-            val score = category.keywords
-                .split(',')
-                .map { normalize(it.trim().lowercase()) }
-                .count { it.isNotBlank() && haystack.contains(it) }
+            val keyword = normalize(category.name.trim().lowercase())
+            val score = if (keyword.isNotBlank() && haystack.contains(keyword)) 1 else 0
             if (score > bestScore) {
                 bestScore = score
-                bestId = category.id
+                bestId = category.name
             }
         }
         return bestId
+    }
+
+    /**
+     * Use Gemini fallback when local parser is uncertain:
+     * - total_amount not found, OR
+     * - parser confidence is low, OR
+     * - document type is not_receipt but image likely has text (may be unusual doc)
+     */
+    private fun shouldUseGeminiFallback(result: OcrResult): Boolean {
+        if (BuildConfig.GEMINI_API_KEY.isBlank()) return false
+        return result.totalAmount == null || result.confidence < GEMINI_FALLBACK_THRESHOLD
     }
 
     private fun normalize(value: String): String {

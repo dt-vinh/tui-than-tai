@@ -1,127 +1,261 @@
 package com.phuongnn14.tuithantai.data
 
 import android.content.Context
-import androidx.room.Dao
-import androidx.room.Database
-import androidx.room.Entity
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.PrimaryKey
-import androidx.room.Query
-import androidx.room.Room
-import androidx.room.RoomDatabase
+import androidx.room.*
 import kotlinx.coroutines.flow.Flow
+import java.io.Serializable
+
+// --- Entities ---
+
+@Entity(tableName = "transactions")
+data class TransactionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val amount: Double,
+    val type: String, // "INCOME" or "EXPENSE"
+    val category: String,
+    val accountName: String,
+    val date: Long,
+    val note: String = "",
+    val isSynced: Boolean = false,
+    val imageUri: String? = null
+) : Serializable
+
+@Entity(tableName = "accounts")
+data class AccountEntity(
+    @PrimaryKey val name: String,
+    val balance: Double,
+    val currency: String = "VND"
+) : Serializable
+
+@Entity(tableName = "budgets")
+data class BudgetEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val categoryName: String,
+    val amount: Double,
+    val period: String,
+    val startDate: Long,
+    val endDate: Long = 0
+) : Serializable
 
 @Entity(tableName = "categories")
 data class CategoryEntity(
-    @PrimaryKey val id: String,
-    val nameVi: String,
-    val nameEn: String,
-    val keywords: String,
-    val sortOrder: Int
-)
+    @PrimaryKey val name: String,
+    val type: String, // "INCOME" or "EXPENSE"
+    val isDefault: Boolean = false
+) : Serializable
 
-@Entity(tableName = "expenses")
-data class ExpenseEntity(
-    @PrimaryKey val id: String,
-    val title: String,
-    val amount: Long,
-    val currency: String = "VND",
-    val categoryId: String,
-    val wallet: String = "Vi ca nhan",
-    val note: String = "",
-    val receiptPath: String? = null,
-    val ocrText: String? = null,
-    val spentAt: Long,
-    val updatedAt: Long,
-    val deletedAt: Long? = null,
-    val syncStatus: SyncStatus = SyncStatus.Pending,
-    val serverVersion: Long = 0
-)
+@Entity(tableName = "recurring_transactions")
+data class RecurringTransactionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val type: String,
+    val amount: Double,
+    val category: String,
+    val accountName: String,
+    val cycle: String,
+    val startDate: Long,
+    val isEnabled: Boolean = true
+) : Serializable
 
-enum class SyncStatus {
-    Pending,
-    Synced,
-    Failed
+@Entity(tableName = "user_settings")
+data class UserSettingEntity(
+    @PrimaryKey val key: String,
+    val value: String
+) : Serializable
+
+// --- DAOs ---
+
+@Dao
+interface TransactionDao {
+    @Query("SELECT * FROM transactions ORDER BY date DESC")
+    fun getAllTransactionsFlow(): Flow<List<TransactionEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTransaction(transaction: TransactionEntity): Long
+
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteTransactionById(id: Long)
+
+    @Query("UPDATE transactions SET isSynced = 1 WHERE id IN (:ids)")
+    suspend fun markSynced(ids: List<Long>)
+
+    @Query("SELECT * FROM transactions WHERE isSynced = 0")
+    suspend fun getUnsyncedTransactions(): List<TransactionEntity>
+
+    @Query("UPDATE transactions SET accountName = :newName WHERE accountName = :oldName")
+    suspend fun updateAccountName(oldName: String, newName: String)
+
+    @Query("UPDATE transactions SET category = :newName WHERE category = :oldName")
+    suspend fun updateCategoryName(oldName: String, newName: String)
 }
 
-data class CategoryTotal(
-    val categoryId: String,
-    val total: Long
-)
+@Dao
+interface AccountDao {
+    @Query("SELECT * FROM accounts")
+    fun getAllAccountsFlow(): Flow<List<AccountEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAccount(account: AccountEntity)
+
+    @Query("DELETE FROM accounts WHERE name = :name")
+    suspend fun deleteAccountByName(name: String)
+
+    @Query("UPDATE accounts SET balance = balance + :amount WHERE name = :name")
+    suspend fun adjustBalance(name: String, amount: Double)
+}
+
+@Dao
+interface BudgetDao {
+    @Query("SELECT * FROM budgets")
+    fun getAllBudgetsFlow(): Flow<List<BudgetEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBudget(budget: BudgetEntity)
+
+    @Query("DELETE FROM budgets WHERE id = :id")
+    suspend fun deleteBudgetById(id: Long)
+
+    @Query("UPDATE budgets SET categoryName = :newName WHERE categoryName = :oldName")
+    suspend fun updateCategoryName(oldName: String, newName: String)
+}
 
 @Dao
 interface CategoryDao {
-    @Query("SELECT * FROM categories ORDER BY sortOrder ASC")
-    fun observeCategories(): Flow<List<CategoryEntity>>
-
-    @Query("SELECT * FROM categories ORDER BY sortOrder ASC")
-    suspend fun getCategories(): List<CategoryEntity>
+    @Query("SELECT * FROM categories")
+    fun getAllCategoriesFlow(): Flow<List<CategoryEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertAll(items: List<CategoryEntity>)
+    suspend fun insertCategory(category: CategoryEntity)
+
+    @Query("DELETE FROM categories WHERE name = :name")
+    suspend fun deleteCategoryByName(name: String)
 }
 
 @Dao
-interface ExpenseDao {
-    @Query("SELECT * FROM expenses WHERE deletedAt IS NULL ORDER BY spentAt DESC, updatedAt DESC")
-    fun observeExpenses(): Flow<List<ExpenseEntity>>
-
-    @Query("SELECT * FROM expenses WHERE syncStatus != 'Synced' AND deletedAt IS NULL")
-    suspend fun getPendingSync(): List<ExpenseEntity>
-
-    @Query("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE deletedAt IS NULL AND spentAt BETWEEN :from AND :to")
-    fun observeTotal(from: Long, to: Long): Flow<Long>
-
-    @Query("SELECT categoryId, COALESCE(SUM(amount), 0) AS total FROM expenses WHERE deletedAt IS NULL AND spentAt BETWEEN :from AND :to GROUP BY categoryId ORDER BY total DESC")
-    fun observeCategoryTotals(from: Long, to: Long): Flow<List<CategoryTotal>>
+interface RecurringTransactionDao {
+    @Query("SELECT * FROM recurring_transactions")
+    fun getAllRecurringFlow(): Flow<List<RecurringTransactionEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(expense: ExpenseEntity)
+    suspend fun insertRecurring(recurring: RecurringTransactionEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertAll(expenses: List<ExpenseEntity>)
+    @Query("DELETE FROM recurring_transactions WHERE id = :id")
+    suspend fun deleteRecurringById(id: Long)
 
-    @Query("UPDATE expenses SET syncStatus = :status, serverVersion = :serverVersion WHERE id = :id")
-    suspend fun setSyncStatus(id: String, status: SyncStatus, serverVersion: Long)
+    @Query("UPDATE recurring_transactions SET accountName = :newName WHERE accountName = :oldName")
+    suspend fun updateAccountName(oldName: String, newName: String)
+
+    @Query("UPDATE recurring_transactions SET category = :newName WHERE category = :oldName")
+    suspend fun updateCategoryName(oldName: String, newName: String)
 }
 
+@Dao
+interface UserSettingDao {
+    @Query("SELECT value FROM user_settings WHERE `key` = :key LIMIT 1")
+    suspend fun getValueByKey(key: String): String?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSetting(setting: UserSettingEntity)
+}
+
+// --- App Database ---
+
 @Database(
-    entities = [CategoryEntity::class, ExpenseEntity::class],
-    version = 1,
-    exportSchema = true
+    entities = [
+        TransactionEntity::class,
+        AccountEntity::class,
+        BudgetEntity::class,
+        CategoryEntity::class,
+        RecurringTransactionEntity::class,
+        UserSettingEntity::class
+    ],
+    version = 2,
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun transactionDao(): TransactionDao
+    abstract fun accountDao(): AccountDao
+    abstract fun budgetDao(): BudgetDao
     abstract fun categoryDao(): CategoryDao
-    abstract fun expenseDao(): ExpenseDao
+    abstract fun recurringDao(): RecurringTransactionDao
+    abstract fun settingDao(): UserSettingDao
 
     companion object {
-        @Volatile private var instance: AppDatabase? = null
+        @Volatile
+        private var INSTANCE: AppDatabase? = null
 
-        fun get(context: Context): AppDatabase {
-            return instance ?: synchronized(this) {
-                instance ?: Room.databaseBuilder(
+        fun getDatabase(context: Context): AppDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "tui_than_tai.db"
-                ).build().also { instance = it }
+                    "tui_than_tai_db"
+                )
+                .fallbackToDestructiveMigration()
+                .build()
+                INSTANCE = instance
+                instance
             }
         }
     }
 }
 
-val defaultCategories = listOf(
-    CategoryEntity("food", "Ăn uống", "Food & drink", "food,restaurant,banh mi,meal,com,pho", 0),
-    CategoryEntity("coffee", "Cafe", "Coffee", "coffee,cafe,tra sua,drink", 1),
-    CategoryEntity("transport", "Đi lại", "Transport", "taxi,grab,bus,fuel,xang", 2),
-    CategoryEntity("shopping", "Mua sắm", "Shopping", "shop,market,store,clothes", 3),
-    CategoryEntity("bills", "Hóa đơn cố định", "Bills", "electricity,water,internet,phone,bill", 4),
-    CategoryEntity("home", "Nhà cửa", "Home", "household,gia dung,furniture", 5),
-    CategoryEntity("health", "Sức khỏe", "Health", "medicine,pharmacy,clinic", 6),
-    CategoryEntity("entertainment", "Giải trí", "Entertainment", "movie,game,karaoke", 7),
-    CategoryEntity("travel", "Du lịch", "Travel", "hotel,flight,trip", 8),
-    CategoryEntity("family", "Gia đình", "Family", "parents,bo me,family", 9),
-    CategoryEntity("gifts", "Quà tặng", "Gifts", "gift,donate", 10),
-    CategoryEntity("repair", "Sửa chữa", "Repair", "repair,service", 11),
-    CategoryEntity("other", "Khác", "Other", "other", 12)
-)
+// --- Repository ---
+
+class LuckyWalletRepository(private val db: AppDatabase) {
+
+    val transactions: Flow<List<TransactionEntity>> = db.transactionDao().getAllTransactionsFlow()
+    val accounts: Flow<List<AccountEntity>> = db.accountDao().getAllAccountsFlow()
+    val budgets: Flow<List<BudgetEntity>> = db.budgetDao().getAllBudgetsFlow()
+    val categories: Flow<List<CategoryEntity>> = db.categoryDao().getAllCategoriesFlow()
+    val recurringTransactions: Flow<List<RecurringTransactionEntity>> = db.recurringDao().getAllRecurringFlow()
+
+    suspend fun insertTransaction(transaction: TransactionEntity) {
+        db.transactionDao().insertTransaction(transaction)
+        val multiplier = if (transaction.type == "INCOME") 1.0 else -1.0
+        db.accountDao().adjustBalance(transaction.accountName, transaction.amount * multiplier)
+    }
+
+    suspend fun deleteTransaction(transaction: TransactionEntity) {
+        db.transactionDao().deleteTransactionById(transaction.id)
+        val multiplier = if (transaction.type == "INCOME") -1.0 else 1.0
+        db.accountDao().adjustBalance(transaction.accountName, transaction.amount * multiplier)
+    }
+
+    suspend fun getUnsyncedTransactions(): List<TransactionEntity> = db.transactionDao().getUnsyncedTransactions()
+
+    suspend fun markTransactionsSynced(ids: List<Long>) = db.transactionDao().markSynced(ids)
+
+    suspend fun insertAccount(account: AccountEntity) = db.accountDao().insertAccount(account)
+
+    suspend fun deleteAccount(account: AccountEntity) = db.accountDao().deleteAccountByName(account.name)
+
+    suspend fun updateAccountReferences(oldName: String, newName: String) {
+        db.transactionDao().updateAccountName(oldName, newName)
+        db.recurringDao().updateAccountName(oldName, newName)
+    }
+
+    suspend fun insertBudget(budget: BudgetEntity) = db.budgetDao().insertBudget(budget)
+
+    suspend fun deleteBudget(id: Long) = db.budgetDao().deleteBudgetById(id)
+
+    suspend fun insertCategory(category: CategoryEntity) = db.categoryDao().insertCategory(category)
+
+    suspend fun deleteCategory(name: String) = db.categoryDao().deleteCategoryByName(name)
+
+    suspend fun updateCategoryReferences(oldName: String, newName: String) {
+        db.transactionDao().updateCategoryName(oldName, newName)
+        db.recurringDao().updateCategoryName(oldName, newName)
+        db.budgetDao().updateCategoryName(oldName, newName)
+    }
+
+    suspend fun insertRecurring(recurring: RecurringTransactionEntity) = db.recurringDao().insertRecurring(recurring)
+
+    suspend fun deleteRecurring(id: Long) = db.recurringDao().deleteRecurringById(id)
+
+    suspend fun getSetting(key: String): String? = db.settingDao().getValueByKey(key)
+
+    suspend fun saveSetting(key: String, value: String) = db.settingDao().insertSetting(UserSettingEntity(key, value))
+}
