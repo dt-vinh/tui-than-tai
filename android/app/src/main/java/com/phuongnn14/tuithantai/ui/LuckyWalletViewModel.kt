@@ -5,6 +5,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.phuongnn14.tuithantai.backup.BackupWorker
+import com.phuongnn14.tuithantai.backup.DriveBackupManager
 import com.phuongnn14.tuithantai.data.*
 import com.phuongnn14.tuithantai.ml.ExpenseAnalyzer
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -13,6 +15,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class LuckyWalletViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -43,6 +48,27 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
     private val _syncMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val syncMessage = _syncMessage.asSharedFlow()
 
+    // ── Google Sign-In + Drive backup state ──────────────────────────────────
+    /** Access token sau khi Google Sign-In thành công */
+    private val _driveAccessToken = MutableStateFlow<String?>(null)
+    val driveAccessToken: StateFlow<String?> = _driveAccessToken.asStateFlow()
+
+    /** Trạng thái backup đang chạy */
+    private val _isBackingUp = MutableStateFlow(false)
+    val isBackingUp: StateFlow<Boolean> = _isBackingUp.asStateFlow()
+
+    /** Thông báo kết quả backup gần nhất */
+    private val _backupMessage = MutableStateFlow<String?>(null)
+    val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
+
+    /** Thời gian backup gần nhất (Long timestamp, 0 = chưa backup) */
+    private val _lastBackupTime = MutableStateFlow(0L)
+    val lastBackupTime: StateFlow<Long> = _lastBackupTime.asStateFlow()
+
+    /** Auto backup đang bật không */
+    private val _autoBackupEnabled = MutableStateFlow(false)
+    val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
+
     private val expenseAnalyzer = ExpenseAnalyzer()
 
     init {
@@ -59,6 +85,12 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
             repository.getSetting("username")?.let { _userName.value = it }
             repository.getSetting("email")?.let { _userEmail.value = it }
             repository.getSetting("server_url")?.let { _serverUrl.value = it }
+            repository.getSetting("auto_backup")?.let { _autoBackupEnabled.value = it.toBoolean() }
+            // Đọc last backup time từ SharedPreferences
+            val prefs = getApplication<android.app.Application>()
+                .getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
+            _lastBackupTime.value = prefs.getLong("last_backup_time", 0L)
+            prefs.getString("drive_access_token", null)?.let { _driveAccessToken.value = it }
         }
     }
 
@@ -159,6 +191,92 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
             _serverUrl.value = url
             repository.saveSetting("server_url", url)
         }
+    }
+
+    // ── Google Sign-In callbacks ─────────────────────────────────────────────
+
+    /** Gọi sau khi Google Sign-In thành công, truyền vào accessToken + user info */
+    fun onGoogleSignInSuccess(accessToken: String, name: String, email: String) {
+        viewModelScope.launch {
+            _driveAccessToken.value = accessToken
+            _isLoggedIn.value = true
+            _userName.value = name
+            _userEmail.value = email
+            // Lưu token vào SharedPreferences để BackupWorker dùng
+            getApplication<android.app.Application>()
+                .getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putString("drive_access_token", accessToken)
+                .apply()
+            repository.saveSetting("logged_in", "true")
+            repository.saveSetting("username", name)
+            repository.saveSetting("email", email)
+        }
+    }
+
+    fun onGoogleSignOut() {
+        viewModelScope.launch {
+            _driveAccessToken.value = null
+            _isLoggedIn.value = false
+            _userName.value = ""
+            _userEmail.value = ""
+            // Hủy auto backup khi sign out
+            if (_autoBackupEnabled.value) {
+                BackupWorker.cancel(getApplication())
+                _autoBackupEnabled.value = false
+                repository.saveSetting("auto_backup", "false")
+            }
+            getApplication<android.app.Application>()
+                .getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
+                .edit().remove("drive_access_token").apply()
+            repository.saveSetting("logged_in", "false")
+            repository.saveSetting("username", "")
+            repository.saveSetting("email", "")
+        }
+    }
+
+    // ── Backup / Restore ─────────────────────────────────────────────────────
+
+    fun backupNow(context: Context) {
+        val token = _driveAccessToken.value ?: return
+        viewModelScope.launch {
+            _isBackingUp.value = true
+            _backupMessage.value = null
+            val result = DriveBackupManager.backup(context, token)
+            _isBackingUp.value = false
+            _backupMessage.value = result.message
+            if (result.success) {
+                val now = System.currentTimeMillis()
+                _lastBackupTime.value = now
+                context.getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
+                    .edit().putLong("last_backup_time", now).apply()
+            }
+        }
+    }
+
+    fun restoreFromDrive(context: Context) {
+        val token = _driveAccessToken.value ?: return
+        viewModelScope.launch {
+            _isBackingUp.value = true
+            _backupMessage.value = null
+            val result = DriveBackupManager.restore(context, token)
+            _isBackingUp.value = false
+            _backupMessage.value = result.message
+        }
+    }
+
+    fun setAutoBackup(context: Context, enabled: Boolean) {
+        viewModelScope.launch {
+            _autoBackupEnabled.value = enabled
+            repository.saveSetting("auto_backup", enabled.toString())
+            if (enabled) BackupWorker.schedule(context)
+            else BackupWorker.cancel(context)
+        }
+    }
+
+    fun formatBackupTime(timestamp: Long, language: AppLanguage): String {
+        if (timestamp == 0L) return Localization.getString("no_backup_yet", language)
+        return SimpleDateFormat("HH:mm dd/MM/yyyy", Locale.getDefault()).format(Date(timestamp))
     }
 
     fun triggerSync() {

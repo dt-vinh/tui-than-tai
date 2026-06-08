@@ -84,6 +84,9 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE isSynced = 0")
     suspend fun getUnsyncedTransactions(): List<TransactionEntity>
 
+    @Query("SELECT * FROM transactions ORDER BY date DESC")
+    suspend fun getAllTransactionsList(): List<TransactionEntity>
+
     @Query("UPDATE transactions SET accountName = :newName WHERE accountName = :oldName")
     suspend fun updateAccountName(oldName: String, newName: String)
 
@@ -95,6 +98,9 @@ interface TransactionDao {
 interface AccountDao {
     @Query("SELECT * FROM accounts")
     fun getAllAccountsFlow(): Flow<List<AccountEntity>>
+
+    @Query("SELECT * FROM accounts")
+    suspend fun getAllAccountsList(): List<AccountEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAccount(account: AccountEntity)
@@ -125,6 +131,9 @@ interface BudgetDao {
 interface CategoryDao {
     @Query("SELECT * FROM categories")
     fun getAllCategoriesFlow(): Flow<List<CategoryEntity>>
+
+    @Query("SELECT * FROM categories")
+    suspend fun getAllCategoriesList(): List<CategoryEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategory(category: CategoryEntity)

@@ -376,13 +376,7 @@ fun TransactionRow(tx: TransactionEntity, language: AppLanguage) {
                 val amountColor = if (isIncome) Color(0xFF2E7D32) else Color(0xFFC62828)
                 Text(amountText, fontWeight = FontWeight.Bold, color = amountColor, style = MaterialTheme.typography.titleMedium)
                 Text(formatDate(tx.date), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                if (!tx.isSynced) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
-                        Icon(Icons.Default.SyncProblem, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(3.dp))
-                        Text(Localization.getString("waiting_sync", language), fontSize = 10.sp, color = Color(0xFFE65100))
-                    }
-                }
+                // sync badge removed
             }
         }
     }
@@ -399,33 +393,20 @@ fun HistoryScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
     val filtered = when (currentFilter) {
         "EXPENSE" -> transactions.filter { it.type == "EXPENSE" }
         "INCOME" -> transactions.filter { it.type == "INCOME" }
-        "PENDING_SYNC" -> transactions.filter { !it.isSynced }
         else -> transactions
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(Localization.getString("history", language), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { viewModel.triggerSync() }) {
-                Icon(Icons.Default.Sync, contentDescription = "Sync")
-            }
-        }
+        Text(Localization.getString("history", language), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
 
         ScrollableTabRow(
-            selectedTabIndex = when (currentFilter) { "EXPENSE" -> 1; "INCOME" -> 2; "PENDING_SYNC" -> 3; else -> 0 },
+            selectedTabIndex = when (currentFilter) { "EXPENSE" -> 1; "INCOME" -> 2; else -> 0 },
             edgePadding = 0.dp, modifier = Modifier.fillMaxWidth()
         ) {
             Tab(selected = currentFilter == "ALL", onClick = { currentFilter = "ALL" }) { Text(Localization.getString("all", language), modifier = Modifier.padding(12.dp)) }
             Tab(selected = currentFilter == "EXPENSE", onClick = { currentFilter = "EXPENSE" }) { Text(Localization.getString("expense", language), modifier = Modifier.padding(12.dp)) }
             Tab(selected = currentFilter == "INCOME", onClick = { currentFilter = "INCOME" }) { Text(Localization.getString("income", language), modifier = Modifier.padding(12.dp)) }
-            Tab(selected = currentFilter == "PENDING_SYNC", onClick = { currentFilter = "PENDING_SYNC" }) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
-                    Icon(Icons.Default.SyncProblem, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(Localization.getString("waiting_sync", language))
-                }
-            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -457,11 +438,6 @@ fun HistoryScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                     Text("${Localization.getString("account", language)}: ${tx.accountName}")
                     Text("${Localization.getString("date", language)}: ${formatDate(tx.date)}")
                     if (tx.note.isNotEmpty()) Text("${Localization.getString("note", language)}: ${tx.note}")
-                    Text(
-                        "${Localization.getString("sync_status", language)}: " +
-                            if (tx.isSynced) Localization.getString("synced", language) else Localization.getString("pending", language),
-                        color = if (tx.isSynced) Color(0xFF2E7D32) else Color(0xFFE65100)
-                    )
                 }
             },
             confirmButton = {
@@ -1008,59 +984,167 @@ fun SplitBillTool(viewModel: LuckyWalletViewModel, language: AppLanguage) {
 
 @Composable
 fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val username by viewModel.userName.collectAsStateWithLifecycle()
     val email by viewModel.userEmail.collectAsStateWithLifecycle()
-    val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
+    val driveToken by viewModel.driveAccessToken.collectAsStateWithLifecycle()
+    val isBackingUp by viewModel.isBackingUp.collectAsStateWithLifecycle()
+    val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
+    val lastBackupTime by viewModel.lastBackupTime.collectAsStateWithLifecycle()
+    val autoBackupEnabled by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
 
-    var nameInput by remember { mutableStateOf("") }
-    var emailInput by remember { mutableStateOf("") }
-    var urlInput by remember { mutableStateOf(serverUrl) }
-    var showAdvancedSync by remember { mutableStateOf(false) }
     var langToSwitchTo by remember { mutableStateOf<AppLanguage?>(null) }
+    var showRestoreConfirm by remember { mutableStateOf(false) }
+
+    // Google Sign-In launcher
+    val googleSignInLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        runCatching {
+            val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
+            val token = account.idToken ?: ""
+            viewModel.onGoogleSignInSuccess(
+                accessToken = token,
+                name = account.displayName ?: "",
+                email = account.email ?: ""
+            )
+        }
+    }
+
+    fun launchGoogleSignIn() {
+        val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(
+            com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN
+        )
+            .requestEmail()
+            .requestIdToken(context.getString(com.phuongnn14.tuithantai.R.string.default_web_client_id))
+            .requestScopes(com.google.android.gms.common.api.Scope("https://www.googleapis.com/auth/drive.appdata"))
+            .build()
+        val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)
+        googleSignInLauncher.launch(client.signInIntent)
+    }
 
     LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        item { Text(Localization.getString("settings", language), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
-
         item {
-            Card {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(Localization.getString("auth_title", language), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium)
-                    if (isLoggedIn) {
-                        Text("${Localization.getString("name", language)}: $username")
-                        Text("${Localization.getString("email", language)}: $email")
-                        Button(onClick = { viewModel.logout() }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error), modifier = Modifier.fillMaxWidth()) {
-                            Text(Localization.getString("logout", language))
+            Text(Localization.getString("settings", language), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        }
+
+        // ── Sao lưu và khôi phục ──────────────────────────────────────────
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Backup, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(Localization.getString("backup_title", language), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium)
+                    }
+
+                    // Google Sign-In / Sign-Out
+                    if (!isLoggedIn || driveToken == null) {
+                        Text(Localization.getString("sign_in_required", language), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        OutlinedButton(
+                            onClick = { launchGoogleSignIn() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(Localization.getString("google_sign_in_btn", language))
                         }
                     } else {
-                        OutlinedTextField(value = nameInput, onValueChange = { nameInput = it }, label = { Text(Localization.getString("name", language)) }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = emailInput, onValueChange = { emailInput = it }, label = { Text(Localization.getString("email", language)) }, modifier = Modifier.fillMaxWidth())
-                        Button(onClick = { if (nameInput.isNotEmpty() && emailInput.isNotEmpty()) viewModel.login(nameInput, emailInput) }, modifier = Modifier.fillMaxWidth()) {
-                            Text(Localization.getString("register", language))
+                        // Đã đăng nhập
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(username, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                Text(email, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                            }
+                            TextButton(onClick = {
+                                com.google.android.gms.auth.api.signin.GoogleSignIn
+                                    .getClient(context, com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                    .signOut()
+                                viewModel.onGoogleSignOut()
+                            }) { Text(Localization.getString("google_sign_out", language), color = MaterialTheme.colorScheme.error) }
+                        }
+
+                        HorizontalDivider()
+
+                        // Thời gian backup gần nhất
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "${Localization.getString("last_backup", language)}: ${viewModel.formatBackupTime(lastBackupTime, language)}",
+                                style = MaterialTheme.typography.bodySmall, color = Color.Gray
+                            )
+                        }
+
+                        // Sao lưu ngay
+                        Button(
+                            onClick = { viewModel.backupNow(context) },
+                            enabled = !isBackingUp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (isBackingUp) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                                Spacer(Modifier.width(8.dp))
+                                Text(Localization.getString("backup_running", language))
+                            } else {
+                                Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(Localization.getString("backup_now", language))
+                            }
+                        }
+
+                        // Khôi phục
+                        OutlinedButton(
+                            onClick = { showRestoreConfirm = true },
+                            enabled = !isBackingUp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(Localization.getString("restore_now", language))
+                        }
+
+                        // Tự động sao lưu 8 PM
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(Localization.getString("auto_backup", language), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            }
+                            Switch(
+                                checked = autoBackupEnabled,
+                                onCheckedChange = { viewModel.setAutoBackup(context, it) }
+                            )
+                        }
+
+                        // Kết quả backup
+                        backupMessage?.let { msg ->
+                            val isSuccess = msg.startsWith("Đã sao lưu") || msg.startsWith("Backup") || msg.startsWith("Đã khôi phục") || msg.startsWith("Restored")
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSuccess) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                                )
+                            ) {
+                                Text(
+                                    msg,
+                                    modifier = Modifier.padding(10.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isSuccess) Color(0xFF2E7D32) else Color(0xFFC62828)
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        item {
-            TextButton(onClick = { showAdvancedSync = !showAdvancedSync }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (showAdvancedSync) Localization.getString("hide_advanced_sync", language) else Localization.getString("advanced_sync_options", language), fontWeight = FontWeight.Bold)
-            }
-        }
-
-        if (showAdvancedSync) {
-            item {
-                Card {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (language == AppLanguage.VIETNAMESE) "Địa chỉ đồng bộ PC" else "PC Sync Address", fontWeight = FontWeight.Bold)
-                        OutlinedTextField(value = urlInput, onValueChange = { urlInput = it }, label = { Text(Localization.getString("server_url", language)) }, modifier = Modifier.fillMaxWidth())
-                        Button(onClick = { viewModel.updateServerUrl(urlInput) }, modifier = Modifier.fillMaxWidth()) { Text(Localization.getString("save", language)) }
-                    }
-                }
-            }
-        }
-
+        // ── Ngôn ngữ ─────────────────────────────────────────────────────
         item {
             Card {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1080,6 +1164,24 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                 }
             }
         }
+    }
+
+    // Dialog xác nhận khôi phục
+    if (showRestoreConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRestoreConfirm = false },
+            title = { Text(Localization.getString("restore_confirm_title", language)) },
+            text = { Text(Localization.getString("restore_confirm_body", language)) },
+            confirmButton = {
+                Button(
+                    onClick = { showRestoreConfirm = false; viewModel.restoreFromDrive(context) },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text(Localization.getString("confirm", language)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreConfirm = false }) { Text(Localization.getString("cancel", language)) }
+            }
+        )
     }
 
     langToSwitchTo?.let { targetLang ->
