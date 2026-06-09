@@ -23,7 +23,5 @@
     <string name="pending_sync">Pending sync</string>
     <string name="empty_state">No expenses yet</string>
     <string name="backend_url">Backend URL</string>
-    <!-- Google OAuth Web Client ID — thay bằng ID thật từ Firebase Console / Google Cloud Console -->
-    <!-- Hướng dẫn: https://console.firebase.google.com → Project Settings → Web API Key -->
-    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
+    <!-- Web Client ID được tự động generate trong google-services.json khi enable Google Sign-In trên Firebase -->
 </resources>

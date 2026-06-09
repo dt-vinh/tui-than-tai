@@ -209,9 +209,10 @@ object DriveBackupManager {
             .build()
 
         val response = client.newCall(request).execute()
+        val body = response.body?.string() ?: ""
+        Log.d(TAG, "findBackupFile: code=${response.code} body=$body")
         if (!response.isSuccessful) return null
 
-        val body = response.body?.string() ?: return null
         val files = JSONObject(body).optJSONArray("files") ?: return null
         return if (files.length() > 0) files.getJSONObject(0).getString("id") else null
     }
@@ -239,6 +240,8 @@ object DriveBackupManager {
             .build()
 
         val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: ""
+        Log.d(TAG, "createFile: code=${response.code} body=$responseBody")
         return response.isSuccessful
     }
 
@@ -250,6 +253,8 @@ object DriveBackupManager {
             .build()
 
         val response = client.newCall(request).execute()
+        val body = response.body?.string() ?: ""
+        Log.d(TAG, "updateFile: code=${response.code} body=$body")
         return response.isSuccessful
     }
 

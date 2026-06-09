@@ -997,6 +997,19 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
     var langToSwitchTo by remember { mutableStateOf<AppLanguage?>(null) }
     var showRestoreConfirm by remember { mutableStateOf(false) }
 
+    val scope = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // Launcher xử lý kết quả Drive permission (UserRecoverableAuthException)
+    val drivePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        // User vừa cấp quyền Drive → thử lấy token lại
+        coroutineScope.launch {
+            viewModel.refreshDriveToken(context)
+        }
+    }
+
     // Google Sign-In launcher
     val googleSignInLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -1004,12 +1017,16 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
         val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
         runCatching {
             val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
-            val token = account.idToken ?: ""
-            viewModel.onGoogleSignInSuccess(
-                accessToken = token,
-                name = account.displayName ?: "",
-                email = account.email ?: ""
-            )
+            // Lấy Drive access token thật (không phải idToken)
+            coroutineScope.launch {
+                viewModel.onGoogleSignInSuccess(
+                    context = context,
+                    account = account,
+                    onDrivePermissionNeeded = { intent -> drivePermissionLauncher.launch(intent) }
+                )
+            }
+        }.onFailure { e ->
+            android.util.Log.e("GoogleSignIn", "Sign-in failed: ${e.message}")
         }
     }
 
@@ -1018,7 +1035,6 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
             com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN
         )
             .requestEmail()
-            .requestIdToken(context.getString(com.phuongnn14.tuithantai.R.string.default_web_client_id))
             .requestScopes(com.google.android.gms.common.api.Scope("https://www.googleapis.com/auth/drive.appdata"))
             .build()
         val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)

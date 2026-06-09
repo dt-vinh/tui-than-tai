@@ -32,7 +32,9 @@ class OcrAnalyzer {
 
         // Build amount candidates from each line
         val resolverCandidates = buildCandidates(lines, defaultCurrency)
-        val totalAmount = TotalResolver.resolve(resolverCandidates)
+        val resolution = TotalResolver.resolveWithConfidence(resolverCandidates)
+        val totalAmount = resolution.amount
+        val resolverConfidence = resolution.confidence
         val candidates = resolverCandidates.map {
             AmountCandidate(amount = it.amount, label = it.label, reason = "", confidence = 0.8)
         }
@@ -60,7 +62,7 @@ class OcrAnalyzer {
         }
         if (items.any { it.needsReview }) reviewFields.add("items")
 
-        val confidence = computeConfidence(totalAmount, resolverCandidates, documentType)
+        val confidence = computeConfidence(totalAmount, resolverCandidates, documentType, resolverConfidence)
 
         // Statements (including payroll sheets) always need user review —
         // they contain multiple records that cannot be auto-mapped to one transaction.
@@ -104,18 +106,24 @@ class OcrAnalyzer {
         currency: MoneyParser.Currency
     ): List<TotalResolver.Candidate> {
         val result = mutableListOf<TotalResolver.Candidate>()
+        val totalLines = lines.size.coerceAtLeast(1)
         for ((index, line) in lines.withIndex()) {
             val norm = normalizeText(line)
             // Skip lines that are reference IDs, not monetary amounts
             if (ID_LINE_TOKENS.any { norm.contains(it) }) continue
-            // Skip lines where the number has letters adjacent (e.g. FT2606050001)
             val amountStr = extractAmountStringFromLine(line) ?: continue
             val parsed = MoneyParser.parse(amountStr, currency) ?: continue
             // Skip numbers with 11+ consecutive digits → account numbers / transaction IDs
             val rawDigits = amountStr.filter { it.isDigit() }
             if (rawDigits.length > 10) continue
-            // Pass raw line as label so TotalResolver can detect đ/VND currency markers
-            result.add(TotalResolver.Candidate(label = line, amount = parsed.amount, lineIndex = index))
+            result.add(
+                TotalResolver.Candidate(
+                    label = line,
+                    amount = parsed.amount,
+                    lineIndex = index,
+                    totalLines = totalLines
+                )
+            )
         }
         return result
     }
@@ -202,13 +210,16 @@ class OcrAnalyzer {
     private fun computeConfidence(
         totalAmount: Double?,
         candidates: List<TotalResolver.Candidate>,
-        docType: DocumentType
+        docType: DocumentType,
+        resolverConfidence: Double = 0.5
     ): Double {
-        var score = 0.5
-        if (totalAmount != null) score += 0.3
-        if (candidates.size in 1..10) score += 0.1
-        if (docType != DocumentType.NOT_RECEIPT) score += 0.1
-        return score.coerceIn(0.0, 1.0)
+        if (totalAmount == null) return 0.0
+        // Start from TotalResolver's signal-based confidence
+        var score = resolverConfidence
+        // Penalise ambiguous doc types
+        if (docType == DocumentType.NOT_RECEIPT) score -= 0.15
+        if (docType == DocumentType.STATEMENT)   score -= 0.20
+        return score.coerceIn(0.0, 0.95)
     }
 
     private fun buildReason(
