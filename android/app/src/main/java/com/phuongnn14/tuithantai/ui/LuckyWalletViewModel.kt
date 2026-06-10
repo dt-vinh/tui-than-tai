@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -71,59 +72,66 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
 
     private val expenseAnalyzer = ExpenseAnalyzer()
 
+    /** Splash screen giữ nguyên đến khi cờ này = true */
+    private val _isAppReady = MutableStateFlow(false)
+    val isAppReady: StateFlow<Boolean> = _isAppReady.asStateFlow()
+
     init {
-        loadSettings()
-        prepopulateDataIfNeeded()
-    }
-
-    private fun loadSettings() {
         viewModelScope.launch {
-            repository.getSetting("lang")?.let {
-                runCatching { _currentLanguage.value = AppLanguage.valueOf(it) }
-            }
-            repository.getSetting("logged_in")?.let { _isLoggedIn.value = it.toBoolean() }
-            repository.getSetting("username")?.let { _userName.value = it }
-            repository.getSetting("email")?.let { _userEmail.value = it }
-            repository.getSetting("server_url")?.let { _serverUrl.value = it }
-            repository.getSetting("auto_backup")?.let { _autoBackupEnabled.value = it.toBoolean() }
-            // Đọc last backup time từ SharedPreferences
-            val prefs = getApplication<android.app.Application>()
-                .getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
-            _lastBackupTime.value = prefs.getLong("last_backup_time", 0L)
-            prefs.getString("drive_access_token", null)?.let { _driveAccessToken.value = it }
+            // Chạy song song: load settings + prepopulate data
+            val settingsJob = launch { loadSettings() }
+            val prepopJob  = launch { prepopulateDataIfNeeded() }
+            settingsJob.join()
+            prepopJob.join()
+            // Báo splash screen có thể ẩn đi
+            _isAppReady.value = true
         }
     }
 
-    private fun prepopulateDataIfNeeded() {
-        viewModelScope.launch {
-            repository.categories.collect { list ->
-                if (list.isEmpty()) {
-                    listOf(
-                        CategoryEntity("Ăn uống", "EXPENSE", true),
-                        CategoryEntity("Di chuyển", "EXPENSE", true),
-                        CategoryEntity("Mua sắm", "EXPENSE", true),
-                        CategoryEntity("Giải trí", "EXPENSE", true),
-                        CategoryEntity("Nhà ở", "EXPENSE", true),
-                        CategoryEntity("Y tế", "EXPENSE", true),
-                        CategoryEntity("Khác", "EXPENSE", true),
-                        CategoryEntity("Lương", "INCOME", true),
-                        CategoryEntity("Thưởng", "INCOME", true),
-                        CategoryEntity("Đầu tư", "INCOME", true),
-                        CategoryEntity("Quà tặng", "INCOME", true)
-                    ).forEach { repository.insertCategory(it) }
-                }
-            }
+    private suspend fun loadSettings() {
+        // 1 query duy nhất thay vì 6 query riêng lẻ
+        val settings = repository.getAllSettings()
+        settings["lang"]?.let {
+            runCatching { _currentLanguage.value = AppLanguage.valueOf(it) }
         }
-        viewModelScope.launch {
-            repository.accounts.collect { list ->
-                if (list.isEmpty()) {
-                    listOf(
-                        AccountEntity("Tiền mặt", 0.0),
-                        AccountEntity("Tài khoản ngân hàng", 0.0),
-                        AccountEntity("Ví MoMo", 0.0)
-                    ).forEach { repository.insertAccount(it) }
-                }
-            }
+        _isLoggedIn.value       = settings["logged_in"]?.toBoolean() ?: false
+        _userName.value          = settings["username"] ?: ""
+        _userEmail.value         = settings["email"] ?: ""
+        _serverUrl.value         = settings["server_url"] ?: "http://localhost:8080"
+        _autoBackupEnabled.value = settings["auto_backup"]?.toBoolean() ?: false
+
+        // SharedPreferences (không phải DB — đọc nhanh)
+        val prefs = getApplication<android.app.Application>()
+            .getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
+        _lastBackupTime.value = prefs.getLong("last_backup_time", 0L)
+        prefs.getString("drive_access_token", null)?.let { _driveAccessToken.value = it }
+    }
+
+    private suspend fun prepopulateDataIfNeeded() {
+        // Dùng .first() thay vì .collect {} — chỉ đọc 1 lần, không giữ coroutine chạy mãi
+        val categories = repository.categories.first()
+        if (categories.isEmpty()) {
+            listOf(
+                CategoryEntity("Ăn uống", "EXPENSE", true),
+                CategoryEntity("Di chuyển", "EXPENSE", true),
+                CategoryEntity("Mua sắm", "EXPENSE", true),
+                CategoryEntity("Giải trí", "EXPENSE", true),
+                CategoryEntity("Nhà ở", "EXPENSE", true),
+                CategoryEntity("Y tế", "EXPENSE", true),
+                CategoryEntity("Khác", "EXPENSE", true),
+                CategoryEntity("Lương", "INCOME", true),
+                CategoryEntity("Thưởng", "INCOME", true),
+                CategoryEntity("Đầu tư", "INCOME", true),
+                CategoryEntity("Quà tặng", "INCOME", true)
+            ).forEach { repository.insertCategory(it) }
+        }
+        val accounts = repository.accounts.first()
+        if (accounts.isEmpty()) {
+            listOf(
+                AccountEntity("Tiền mặt", 0.0),
+                AccountEntity("Tài khoản ngân hàng", 0.0),
+                AccountEntity("Ví MoMo", 0.0)
+            ).forEach { repository.insertAccount(it) }
         }
     }
 

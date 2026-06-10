@@ -165,6 +165,10 @@ interface UserSettingDao {
     @Query("SELECT value FROM user_settings WHERE `key` = :key LIMIT 1")
     suspend fun getValueByKey(key: String): String?
 
+    /** Load tất cả settings 1 query duy nhất — dùng khi khởi động app */
+    @Query("SELECT * FROM user_settings")
+    suspend fun getAllSettings(): List<UserSettingEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSetting(setting: UserSettingEntity)
 }
@@ -265,6 +269,10 @@ class LuckyWalletRepository(private val db: AppDatabase) {
     suspend fun deleteRecurring(id: Long) = db.recurringDao().deleteRecurringById(id)
 
     suspend fun getSetting(key: String): String? = db.settingDao().getValueByKey(key)
+
+    /** Load tất cả settings 1 lần — nhanh hơn nhiều lần getSetting() riêng lẻ */
+    suspend fun getAllSettings(): Map<String, String> =
+        db.settingDao().getAllSettings().associate { it.key to it.value }
 
     suspend fun saveSetting(key: String, value: String) = db.settingDao().insertSetting(UserSettingEntity(key, value))
 }
