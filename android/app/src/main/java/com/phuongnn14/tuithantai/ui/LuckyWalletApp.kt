@@ -201,10 +201,13 @@ fun HomeScreen(
 
     var showAddTxDialog by remember { mutableStateOf<String?>(null) }
     var showScanDialog by remember { mutableStateOf(false) }
+    var selectedTx by remember { mutableStateOf<TransactionEntity?>(null) }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 80.dp)
     ) {
         // Greeting card
         item {
@@ -332,15 +335,63 @@ fun HomeScreen(
                 }
             }
         } else {
-            items(recents) { tx -> TransactionRow(tx = tx, language = language) }
+            items(recents) { tx ->
+                Box(modifier = Modifier.clickable { selectedTx = tx }) {
+                    TransactionRow(tx = tx, language = language)
+                }
+            }
         }
+    } // end LazyColumn
+
+    FloatingActionButton(
+        onClick = { showScanDialog = true },
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(16.dp),
+        containerColor = MaterialTheme.colorScheme.primary
+    ) {
+        Icon(Icons.Default.CameraAlt, contentDescription = "Quét AI")
     }
+    } // end Box
 
     showAddTxDialog?.let { type ->
         AddTransactionDialog(type = type, viewModel = viewModel, language = language, onDismiss = { showAddTxDialog = null })
     }
     if (showScanDialog) {
         ScanAiDialog(viewModel = viewModel, language = language, onDismiss = { showScanDialog = false })
+    }
+    selectedTx?.let { tx ->
+        AlertDialog(
+            onDismissRequest = { selectedTx = null },
+            title = { Text(Localization.getString("transaction_detail", language)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(tx.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    val isIncome = tx.type == "INCOME"
+                    val amountText = if (isIncome) "+${formatMoney(tx.amount, "VND", language)}" else "-${formatMoney(tx.amount, "VND", language)}"
+                    val amountColor = if (isIncome) Color(0xFF2E7D32) else Color(0xFFC62828)
+                    Text(amountText, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = amountColor)
+                    HorizontalDivider()
+                    Text("${Localization.getString("category", language)}: ${Localization.getString(tx.category, language)}")
+                    Text("${Localization.getString("account", language)}: ${Localization.getString(tx.accountName, language)}")
+                    Text("${Localization.getString("date", language)}: ${formatDate(tx.date)}")
+                    if (tx.note.isNotEmpty()) Text("${Localization.getString("note", language)}: ${tx.note}")
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.deleteTransaction(tx); selectedTx = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(Localization.getString("delete", language))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedTx = null }) {
+                    Text(Localization.getString("cancel", language))
+                }
+            }
+        )
     }
 }
 
