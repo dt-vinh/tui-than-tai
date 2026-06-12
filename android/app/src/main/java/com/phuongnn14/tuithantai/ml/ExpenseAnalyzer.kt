@@ -152,10 +152,11 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
         )
     }
 
-    private fun inferTitle(text: String): String =
+    fun inferTitle(text: String, labels: List<String> = emptyList()): String =
         text.lineSequence()
             .map { it.trim() }
             .firstOrNull { it.length in 3..48 && !it.any(Char::isDigit) }
+            ?: labels.firstOrNull { it.length in 3..48 }
             ?: ""
 
     // ── Legacy helpers kept for unit-test compatibility ───────────────────────

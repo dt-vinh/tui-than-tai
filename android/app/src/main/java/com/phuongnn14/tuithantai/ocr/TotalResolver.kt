@@ -136,7 +136,11 @@ object TotalResolver {
 
         val validScored = scored.filter { !it.excluded }
         val best = (if (validScored.isNotEmpty()) validScored else scored)
-            .maxByOrNull { it.total }
+            .maxWithOrNull(
+                compareBy<Scored> { it.total }
+                    .thenBy { it.candidate.amount }
+                    .thenBy { it.candidate.lineIndex }
+            )
             ?: return Resolution(null, 0.0)
 
         // ── Confidence ───────────────────────────────────────────────────────

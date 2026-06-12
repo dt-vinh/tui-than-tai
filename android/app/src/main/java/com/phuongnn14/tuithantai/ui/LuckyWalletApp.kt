@@ -34,12 +34,16 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -57,6 +61,25 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.*
+
+private val BrandGreen = Color(0xFF0B6B4B)
+private val BrandGreenDark = Color(0xFF063D35)
+private val BrandMint = Color(0xFFE8F6ED)
+private val BrandGold = Color(0xFFE5B54A)
+private val BrandGoldSoft = Color(0xFFFFF1C7)
+private val BrandCanvas = Color(0xFFF7F8F2)
+private val BrandSurface = Color.White
+private val BrandSurfaceAlt = Color(0xFFEAF0EA)
+private val BrandInk = Color(0xFF17211C)
+private val BrandMuted = Color(0xFF69736D)
+private val BrandExpense = Color(0xFFC73D32)
+private val BrandExpenseSoft = Color(0xFFFBE8E5)
+private val BrandIncome = Color(0xFF278443)
+private val BrandIncomeSoft = Color(0xFFE8F6ED)
+private val BrandBorder = Color(0xFFDDE7DE)
+private val BrandBlue = Color(0xFF1D7890)
+private val BrandBlueSoft = Color(0xFFE7F0F7)
+private val AppShape = RoundedCornerShape(8.dp)
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
@@ -96,6 +119,88 @@ fun formatVndInput(input: String): String {
 fun parseVndInput(input: String): Double =
     input.filter { it.isDigit() }.toDoubleOrNull() ?: 0.0
 
+@Composable
+private fun BrandMark(
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .background(BrandGreenDark, AppShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            Icons.Default.AccountBalanceWallet,
+            contentDescription = null,
+            tint = BrandGold,
+            modifier = Modifier.size(size * 0.55f)
+        )
+        Icon(
+            Icons.Default.Star,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(size * 0.12f)
+                .size(size * 0.22f)
+        )
+    }
+}
+
+@Composable
+private fun AppCard(
+    modifier: Modifier = Modifier,
+    containerColor: Color = BrandSurface,
+    borderColor: Color = BrandBorder,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = modifier,
+        shape = AppShape,
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, borderColor),
+        content = content
+    )
+}
+
+@Composable
+private fun SectionHeader(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        modifier = modifier,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Black,
+        color = BrandInk
+    )
+}
+
+@Composable
+private fun MetricCard(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    accent: Color,
+    containerColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    AppCard(modifier = modifier, containerColor = containerColor, borderColor = Color.Transparent) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(Color.White.copy(alpha = 0.72f), AppShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
+            }
+            Text(label, style = MaterialTheme.typography.labelMedium, color = accent, fontWeight = FontWeight.Bold)
+            Text(value, style = MaterialTheme.typography.titleMedium, color = accent, fontWeight = FontWeight.Black)
+        }
+    }
+}
+
 // ─── App Root ─────────────────────────────────────────────────────────────────
 
 @Composable
@@ -111,6 +216,7 @@ fun LuckyWalletApp(viewModel: LuckyWalletViewModel = viewModel()) {
     }
 
     Scaffold(
+        containerColor = BrandCanvas,
         bottomBar = { LuckyNavigationBar(navController = navController, language = language) }
     ) { innerPadding ->
         NavHost(
@@ -140,7 +246,11 @@ fun LuckyNavigationBar(navController: NavHostController, language: AppLanguage) 
         NavigationItem("tools", "tools", Icons.Default.GridView, Icons.Outlined.GridView),
         NavigationItem("settings", "settings", Icons.Default.Settings, Icons.Outlined.Settings)
     )
-    NavigationBar(tonalElevation = 8.dp) {
+    NavigationBar(
+        containerColor = BrandSurface,
+        tonalElevation = 0.dp,
+        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp).clip(AppShape)
+    ) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
         items.forEach { item ->
@@ -168,7 +278,14 @@ fun LuckyNavigationBar(navController: NavHostController, language: AppLanguage) 
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                     )
-                }
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = BrandGreenDark,
+                    selectedTextColor = BrandGreenDark,
+                    indicatorColor = BrandGoldSoft,
+                    unselectedIconColor = BrandMuted,
+                    unselectedTextColor = BrandMuted
+                )
             )
         }
     }
@@ -205,94 +322,105 @@ fun HomeScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(bottom = 80.dp)
+        modifier = Modifier.fillMaxSize().background(BrandCanvas),
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Greeting card
         item {
             val displayName = if (isLoggedIn && username.isNotEmpty()) username
                               else Localization.getString("not_logged_in", language)
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "${Localization.getString("logged_in_as", language)} $displayName",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = "${Localization.getString("date", language)}: ${formatDate(System.currentTimeMillis())}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                }
-            }
-        }
-
-        // Balance card
-        item {
-            Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(2.dp)) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            AppCard(modifier = Modifier.fillMaxWidth(), containerColor = BrandSurface) {
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Text(
-                        text = Localization.getString("current_balance", language),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = formatMoney(totalBalance, currency, language),
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    BrandMark(size = 52.dp)
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = Localization.getString("app_name", language),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Black,
+                            color = BrandInk
+                        )
+                        Text(
+                            text = "${Localization.getString("logged_in_as", language)} $displayName",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = BrandMuted
+                        )
+                        Text(
+                            text = "${Localization.getString("date", language)}: ${formatDate(System.currentTimeMillis())}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = BrandMuted
+                        )
+                    }
                 }
             }
         }
 
-        // Income / Expense summary
+        item {
+            AppCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = BrandGreenDark,
+                borderColor = BrandGreenDark
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = Localization.getString("current_balance", language),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.76f)
+                        )
+                        Text(
+                            text = formatMoney(totalBalance, currency, language),
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                    }
+                    Box(
+                        modifier = Modifier.size(58.dp).background(BrandGold, AppShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Savings, contentDescription = null, tint = BrandGreenDark, modifier = Modifier.size(34.dp))
+                    }
+                }
+            }
+        }
+
         item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Card(
+                MetricCard(
+                    label = Localization.getString("income", language),
+                    value = "+${formatMoney(incomeSum, currency, language)}",
+                    icon = Icons.Default.TrendingUp,
+                    accent = BrandIncome,
+                    containerColor = BrandIncomeSoft,
                     modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.TrendingUp, contentDescription = null, tint = Color(0xFF2E7D32))
-                        Spacer(Modifier.height(4.dp))
-                        Text(Localization.getString("income", language), style = MaterialTheme.typography.labelMedium, color = Color(0xFF2E7D32))
-                        Spacer(Modifier.height(2.dp))
-                        Text("+${formatMoney(incomeSum, currency, language)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
-                    }
-                }
-                Card(
+                )
+                MetricCard(
+                    label = Localization.getString("expense", language),
+                    value = "-${formatMoney(expenseSum, currency, language)}",
+                    icon = Icons.Default.TrendingDown,
+                    accent = BrandExpense,
+                    containerColor = BrandExpenseSoft,
                     modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.TrendingDown, contentDescription = null, tint = Color(0xFFC62828))
-                        Spacer(Modifier.height(4.dp))
-                        Text(Localization.getString("expense", language), style = MaterialTheme.typography.labelMedium, color = Color(0xFFC62828))
-                        Spacer(Modifier.height(2.dp))
-                        Text("-${formatMoney(expenseSum, currency, language)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color(0xFFC62828))
-                    }
-                }
+                )
             }
         }
 
-        // Quick actions
         item {
-            Text(Localization.getString("quick_actions", language), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            SectionHeader(Localization.getString("quick_actions", language))
             Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { showScanDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    shape = AppShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark),
                     modifier = Modifier.weight(1f).height(48.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
@@ -302,7 +430,8 @@ fun HomeScreen(
                 }
                 Button(
                     onClick = { showAddTxDialog = "EXPENSE" },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
+                    shape = AppShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandExpense),
                     modifier = Modifier.weight(1f).height(48.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
@@ -312,7 +441,8 @@ fun HomeScreen(
                 }
                 Button(
                     onClick = { showAddTxDialog = "INCOME" },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                    shape = AppShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandIncome),
                     modifier = Modifier.weight(1f).height(48.dp),
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
@@ -323,15 +453,26 @@ fun HomeScreen(
             }
         }
 
-        // Recent transactions
         item {
-            Text(Localization.getString("recent_transactions", language), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            SectionHeader(Localization.getString("recent_transactions", language))
         }
         val recents = transactions.take(5)
         if (recents.isEmpty()) {
             item {
-                Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text(Localization.getString("no_transactions", language), style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                AppCard(modifier = Modifier.fillMaxWidth(), containerColor = BrandSurface) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = BrandMuted, modifier = Modifier.size(34.dp))
+                        Text(
+                            Localization.getString("no_transactions", language),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = BrandMuted,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         } else {
@@ -401,7 +542,10 @@ fun HomeScreen(
 fun TransactionRow(tx: TransactionEntity, language: AppLanguage) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = AppShape,
+        colors = CardDefaults.cardColors(containerColor = BrandSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, BrandBorder)
     ) {
         Row(
             modifier = Modifier.padding(14.dp).fillMaxWidth(),
@@ -412,21 +556,21 @@ fun TransactionRow(tx: TransactionEntity, language: AppLanguage) {
                 Text(tx.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                    Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(14.dp), tint = BrandMuted)
                     Spacer(Modifier.width(4.dp))
-                    Text(Localization.getString(tx.category, language), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(Localization.getString(tx.category, language), style = MaterialTheme.typography.bodySmall, color = BrandMuted)
                     Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                    Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, modifier = Modifier.size(14.dp), tint = BrandMuted)
                     Spacer(Modifier.width(4.dp))
-                    Text(Localization.getString(tx.accountName, language), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(Localization.getString(tx.accountName, language), style = MaterialTheme.typography.bodySmall, color = BrandMuted)
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
                 val isIncome = tx.type == "INCOME"
                 val amountText = if (isIncome) "+${formatMoney(tx.amount, "VND", language)}" else "-${formatMoney(tx.amount, "VND", language)}"
-                val amountColor = if (isIncome) Color(0xFF2E7D32) else Color(0xFFC62828)
+                val amountColor = if (isIncome) BrandIncome else BrandExpense
                 Text(amountText, fontWeight = FontWeight.Bold, color = amountColor, style = MaterialTheme.typography.titleMedium)
-                Text(formatDate(tx.date), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(formatDate(tx.date), style = MaterialTheme.typography.bodySmall, color = BrandMuted)
                 // sync badge removed
             }
         }
@@ -447,13 +591,16 @@ fun HistoryScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
         else -> transactions
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text(Localization.getString("history", language), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    Column(modifier = Modifier.fillMaxSize().background(BrandCanvas).padding(16.dp)) {
+        SectionHeader(Localization.getString("history", language))
         Spacer(Modifier.height(12.dp))
 
         ScrollableTabRow(
             selectedTabIndex = when (currentFilter) { "EXPENSE" -> 1; "INCOME" -> 2; else -> 0 },
-            edgePadding = 0.dp, modifier = Modifier.fillMaxWidth()
+            edgePadding = 0.dp,
+            containerColor = BrandCanvas,
+            contentColor = BrandGreenDark,
+            modifier = Modifier.fillMaxWidth()
         ) {
             Tab(selected = currentFilter == "ALL", onClick = { currentFilter = "ALL" }) { Text(Localization.getString("all", language), modifier = Modifier.padding(12.dp)) }
             Tab(selected = currentFilter == "EXPENSE", onClick = { currentFilter = "EXPENSE" }) { Text(Localization.getString("expense", language), modifier = Modifier.padding(12.dp)) }
@@ -509,22 +656,40 @@ fun ReportsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
     var activeTimeFilter by remember { mutableStateOf("THIS_MONTH") }
 
     val now = System.currentTimeMillis()
-    val calendar = Calendar.getInstance().also { it.timeInMillis = now }
-    val startOfTime = when (activeTimeFilter) {
-        "TODAY" -> calendar.apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0) }.timeInMillis
-        "WEEK" -> calendar.apply { set(Calendar.DAY_OF_WEEK, firstDayOfWeek) }.timeInMillis
-        "THIS_MONTH" -> calendar.apply { set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis
-        else -> calendar.apply { set(Calendar.DAY_OF_YEAR, 1) }.timeInMillis
-    }
-
+    val startOfTime = startOfReportPeriod(now, activeTimeFilter)
     val periodTx = transactions.filter { it.date >= startOfTime }
     val incomeSum = periodTx.filter { it.type == "INCOME" }.sumOf { it.amount }
     val expenseSum = periodTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
     val remaining = incomeSum - expenseSum
+    val dailyCashFlow = remember(periodTx, now) { buildDailyCashFlow(periodTx, now, language) }
+    val catSums = periodTx
+        .filter { it.type == "EXPENSE" }
+        .groupBy { it.category }
+        .mapValues { e -> e.value.sumOf { it.amount } }
+        .toList()
+        .sortedByDescending { it.second }
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(BrandCanvas),
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
         item {
-            Text(Localization.getString("report_dashboard", language), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = if (language == AppLanguage.VIETNAMESE) "Báo cáo dễ hiểu" else "Clear reports",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Black,
+                    color = BrandInk
+                )
+                Text(
+                    text = if (language == AppLanguage.VIETNAMESE)
+                        "Nhìn nhanh tiền vào, tiền ra và hạng mục đang tiêu nhiều."
+                    else "A quick look at cash in, cash out, and where spending goes.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = BrandMuted
+                )
+            }
         }
 
         item {
@@ -538,7 +703,7 @@ fun ReportsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                             onClick = { activeTimeFilter = key },
                             label = { Text(Localization.getString(langKey, language)) },
                             colors = if (activeTimeFilter == key)
-                                AssistChipDefaults.elevatedAssistChipColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                                AssistChipDefaults.elevatedAssistChipColors(containerColor = BrandGoldSoft, labelColor = BrandGreenDark)
                             else AssistChipDefaults.elevatedAssistChipColors()
                         )
                     }
@@ -546,65 +711,366 @@ fun ReportsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
         }
 
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "${Localization.getString("remaining", language)}: ${formatMoney(remaining, "VND", language)}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (remaining >= 0.0) Color(0xFF2E7D32) else Color(0xFFC62828)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text("${Localization.getString("income", language)}: ${formatMoney(incomeSum, "VND", language)}", color = Color(0xFF2E7D32))
-                    Text("${Localization.getString("expense", language)}: ${formatMoney(expenseSum, "VND", language)}", color = Color(0xFFC62828))
-                }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricCard(
+                    label = if (language == AppLanguage.VIETNAMESE) "Còn lại" else "Left",
+                    value = formatMoney(remaining, "VND", language),
+                    icon = if (remaining >= 0.0) Icons.Default.Savings else Icons.Default.Warning,
+                    accent = if (remaining >= 0.0) BrandIncome else BrandExpense,
+                    containerColor = if (remaining >= 0.0) BrandIncomeSoft else BrandExpenseSoft,
+                    modifier = Modifier.weight(1f)
+                )
+                MetricCard(
+                    label = Localization.getString("expense", language),
+                    value = formatMoney(expenseSum, "VND", language),
+                    icon = Icons.Default.TrendingDown,
+                    accent = BrandExpense,
+                    containerColor = BrandExpenseSoft,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(Localization.getString("income_expense_chart", language), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(16.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.BottomCenter) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val w = size.width; val h = size.height
-                            val maxVal = maxOf(incomeSum, expenseSum, 1000.0)
-                            val barWidth = w / 5f; val spacerWidth = w / 12f
-                            val incomeHeight = (incomeSum / maxVal * h * 0.85).toFloat()
-                            val expenseHeight = (expenseSum / maxVal * h * 0.85).toFloat()
-                            drawLine(color = Color.Gray, start = Offset(0f, h), end = Offset(w, h), strokeWidth = 2f)
-                            drawRoundRect(color = Color(0xFF2E7D32), topLeft = Offset(w / 2f - barWidth - spacerWidth / 2f, h - incomeHeight), size = Size(barWidth, incomeHeight), cornerRadius = CornerRadius(10f, 10f))
-                            drawRoundRect(color = Color(0xFFC62828), topLeft = Offset(w / 2f + spacerWidth / 2f, h - expenseHeight), size = Size(barWidth, expenseHeight), cornerRadius = CornerRadius(10f, 10f))
+            WeeklyCashFlowCard(dailyCashFlow, incomeSum, expenseSum, language)
+        }
+
+        item {
+            CategoryBreakdownCard(catSums, language)
+        }
+    }
+}
+
+private data class DailyCashFlow(
+    val label: String,
+    val income: Double,
+    val expense: Double
+)
+
+private val ReportCategoryColors = listOf(
+    BrandExpense,
+    BrandGold,
+    BrandBlue,
+    BrandIncome,
+    Color(0xFF7C5CC4),
+    Color(0xFFCF7A31),
+    BrandMuted
+)
+
+private fun startOfReportPeriod(now: Long, activeTimeFilter: String): Long {
+    return Calendar.getInstance().run {
+        timeInMillis = now
+        set(Calendar.MILLISECOND, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.HOUR_OF_DAY, 0)
+        when (activeTimeFilter) {
+            "TODAY" -> Unit
+            "WEEK" -> set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
+            "THIS_MONTH" -> set(Calendar.DAY_OF_MONTH, 1)
+            else -> set(Calendar.DAY_OF_YEAR, 1)
+        }
+        timeInMillis
+    }
+}
+
+private fun buildDailyCashFlow(
+    transactions: List<TransactionEntity>,
+    now: Long,
+    language: AppLanguage
+): List<DailyCashFlow> {
+    val dayFormatter = SimpleDateFormat(
+        if (language == AppLanguage.VIETNAMESE) "dd/MM" else "MM/dd",
+        Locale.getDefault()
+    )
+    return (6 downTo 0).map { offset ->
+        val dayStart = Calendar.getInstance().run {
+            timeInMillis = now
+            add(Calendar.DAY_OF_YEAR, -offset)
+            set(Calendar.MILLISECOND, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.HOUR_OF_DAY, 0)
+            timeInMillis
+        }
+        val dayEnd = Calendar.getInstance().run {
+            timeInMillis = dayStart
+            add(Calendar.DAY_OF_YEAR, 1)
+            timeInMillis
+        }
+        val dayTx = transactions.filter { it.date in dayStart until dayEnd }
+        DailyCashFlow(
+            label = dayFormatter.format(Date(dayStart)),
+            income = dayTx.filter { it.type == "INCOME" }.sumOf { it.amount },
+            expense = dayTx.filter { it.type == "EXPENSE" }.sumOf { it.amount }
+        )
+    }
+}
+
+@Composable
+private fun WeeklyCashFlowCard(
+    dailyCashFlow: List<DailyCashFlow>,
+    incomeSum: Double,
+    expenseSum: Double,
+    language: AppLanguage
+) {
+    val maxValue = maxOf(dailyCashFlow.maxOfOrNull { maxOf(it.income, it.expense) } ?: 0.0, 1.0)
+
+    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = BrandSurface) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (language == AppLanguage.VIETNAMESE) "Dòng tiền 7 ngày" else "7-day cash flow",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        color = BrandInk
+                    )
+                    Text(
+                        text = if (language == AppLanguage.VIETNAMESE) "Cột xanh là tiền vào, cột đỏ là tiền ra." else "Green bars are income, red bars are spending.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = BrandMuted
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(formatMoney(incomeSum, "VND", language), color = BrandIncome, fontWeight = FontWeight.Bold)
+                    Text(formatMoney(expenseSum, "VND", language), color = BrandExpense, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().height(148.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                dailyCashFlow.forEach { point ->
+                    DailyBar(point, maxValue)
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                ReportLegendDot(BrandIncome, Localization.getString("income", language))
+                ReportLegendDot(BrandExpense, Localization.getString("expense", language))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyBar(point: DailyCashFlow, maxValue: Double) {
+    val incomeHeight = ((point.income / maxValue) * 92).coerceIn(0.0, 92.0).dp
+    val expenseHeight = ((point.expense / maxValue) * 92).coerceIn(0.0, 92.0).dp
+    val minVisible = 4.dp
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+        Box(modifier = Modifier.height(104.dp), contentAlignment = Alignment.BottomCenter) {
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
+                Box(
+                    modifier = Modifier
+                        .width(10.dp)
+                        .height(if (point.income > 0.0) incomeHeight.coerceAtLeast(minVisible) else 2.dp)
+                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                        .background(if (point.income > 0.0) BrandIncome else BrandBorder)
+                )
+                Box(
+                    modifier = Modifier
+                        .width(10.dp)
+                        .height(if (point.expense > 0.0) expenseHeight.coerceAtLeast(minVisible) else 2.dp)
+                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                        .background(if (point.expense > 0.0) BrandExpense else BrandBorder)
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(point.label, style = MaterialTheme.typography.labelSmall, color = BrandMuted)
+    }
+}
+
+@Composable
+private fun CategoryBreakdownCard(
+    categorySums: List<Pair<String, Double>>,
+    language: AppLanguage
+) {
+    val totalExpense = categorySums.sumOf { it.second }
+    val topCategories = categorySums.take(6)
+
+    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = BrandSurface) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = if (language == AppLanguage.VIETNAMESE) "Tiền đi đâu?" else "Where did money go?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Black,
+                    color = BrandInk
+                )
+                Text(
+                    text = if (language == AppLanguage.VIETNAMESE) "Hạng mục lớn nhất nằm trên cùng để dễ quyết định." else "Largest categories stay on top for quick decisions.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BrandMuted
+                )
+            }
+
+            if (topCategories.isEmpty()) {
+                EmptyReportState(language)
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ExpenseDonutChart(
+                        slices = topCategories,
+                        totalExpense = totalExpense,
+                        language = language,
+                        modifier = Modifier.size(142.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        topCategories.take(3).forEachIndexed { index, (category, amount) ->
+                            ReportLegendDot(
+                                color = ReportCategoryColors[index % ReportCategoryColors.size],
+                                label = "${Localization.getString(category, language)} ${((amount / totalExpense) * 100).toInt()}%"
+                            )
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(12.dp).background(Color(0xFF2E7D32), RoundedCornerShape(2.dp)))
-                            Spacer(Modifier.width(6.dp)); Text(Localization.getString("income", language), fontSize = 12.sp)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(12.dp).background(Color(0xFFC62828), RoundedCornerShape(2.dp)))
-                            Spacer(Modifier.width(6.dp)); Text(Localization.getString("expense", language), fontSize = 12.sp)
-                        }
-                    }
+                }
+
+                topCategories.forEachIndexed { index, (category, amount) ->
+                    CategoryProgressRow(
+                        rank = index + 1,
+                        category = Localization.getString(category, language),
+                        amount = amount,
+                        total = totalExpense,
+                        color = ReportCategoryColors[index % ReportCategoryColors.size],
+                        language = language
+                    )
                 }
             }
         }
+    }
+}
 
-        item { Text(Localization.getString("category_stats", language), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+@Composable
+private fun ExpenseDonutChart(
+    slices: List<Pair<String, Double>>,
+    totalExpense: Double,
+    language: AppLanguage,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 20.dp.toPx()
+            val diameter = size.minDimension - strokeWidth
+            val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+            val arcSize = Size(diameter, diameter)
+            var startAngle = -90f
 
-        val catSums = periodTx.filter { it.type == "EXPENSE" }.groupBy { it.category }.mapValues { e -> e.value.sumOf { it.amount } }.toList().sortedByDescending { it.second }
-        if (catSums.isEmpty()) {
-            item { Text(Localization.getString("no_transactions", language), style = MaterialTheme.typography.bodyMedium, color = Color.Gray, modifier = Modifier.padding(8.dp)) }
-        } else {
-            items(catSums) { (cat, sum) ->
-                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(Localization.getString(cat, language), fontWeight = FontWeight.Medium)
-                    Text(formatMoney(sum, "VND", language), color = Color(0xFFC62828), fontWeight = FontWeight.Bold)
-                }
+            drawArc(
+                color = BrandSurfaceAlt,
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(strokeWidth, cap = StrokeCap.Round)
+            )
+
+            slices.forEachIndexed { index, (_, amount) ->
+                val sweep = ((amount / totalExpense) * 360f).toFloat().coerceAtLeast(2f)
+                drawArc(
+                    color = ReportCategoryColors[index % ReportCategoryColors.size],
+                    startAngle = startAngle,
+                    sweepAngle = sweep,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = Stroke(strokeWidth, cap = StrokeCap.Butt)
+                )
+                startAngle += sweep
             }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = if (language == AppLanguage.VIETNAMESE) "Đã chi" else "Spent",
+                style = MaterialTheme.typography.labelSmall,
+                color = BrandMuted
+            )
+            Text(
+                text = formatMoney(totalExpense, "VND", language),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Black,
+                color = BrandInk,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryProgressRow(
+    rank: Int,
+    category: String,
+    amount: Double,
+    total: Double,
+    color: Color,
+    language: AppLanguage
+) {
+    val percent = if (total <= 0.0) 0f else (amount / total).toFloat().coerceIn(0f, 1f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(AppShape)
+            .background(BrandCanvas)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(AppShape)
+                .background(color.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(rank.toString(), color = color, fontWeight = FontWeight.Black, style = MaterialTheme.typography.labelMedium)
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text(category, fontWeight = FontWeight.SemiBold, color = BrandInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("${(percent * 100).toInt()}%", color = BrandMuted, fontWeight = FontWeight.Bold)
+            }
+            Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)).background(BrandBorder)) {
+                Box(modifier = Modifier.fillMaxWidth(percent).height(8.dp).background(color))
+            }
+        }
+        Text(formatMoney(amount, "VND", language), color = BrandExpense, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun ReportLegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(modifier = Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(color))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = BrandMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun EmptyReportState(language: AppLanguage) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(148.dp)
+            .clip(AppShape)
+            .background(BrandCanvas),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Outlined.ReceiptLong, contentDescription = null, tint = BrandMuted, modifier = Modifier.size(34.dp))
+            Text(
+                text = if (language == AppLanguage.VIETNAMESE) "Nhập vài giao dịch để xem báo cáo." else "Add a few transactions to see reports.",
+                color = BrandMuted,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
@@ -624,10 +1090,10 @@ fun ToolsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
         if (tool == null) {
             MainToolsDashboard(onSelectTool = { activeSubTool = it }, language = language)
         } else {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().background(BrandCanvas)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     IconButton(onClick = { activeSubTool = null }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = BrandGreenDark)
                     }
                     Spacer(Modifier.width(8.dp))
                     Text(
@@ -639,7 +1105,8 @@ fun ToolsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                             else -> Localization.getString("split_bill_title", language)
                         },
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = BrandInk
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
@@ -665,16 +1132,55 @@ fun MainToolsDashboard(onSelectTool: (String) -> Unit, language: AppLanguage) {
         "RECURRING" to "recurring_title",
         "SPLIT" to "split_bill_title"
     )
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(Localization.getString("tools", language), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(items) { (key, langKey) ->
-                Card(modifier = Modifier.fillMaxWidth().clickable { onSelectTool(key) }) {
-                    Row(modifier = Modifier.padding(20.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(Localization.getString(langKey, language), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Icon(Icons.Default.ChevronRight, contentDescription = null)
+    val subtitles = mapOf(
+        "ACCOUNTS" to if (language == AppLanguage.VIETNAMESE) "Tiền mặt, ngân hàng, ví điện tử." else "Cash, bank and e-wallets.",
+        "BUDGETS" to if (language == AppLanguage.VIETNAMESE) "Theo dõi hạn mức theo tháng." else "Track monthly limits.",
+        "CATEGORIES" to if (language == AppLanguage.VIETNAMESE) "Tùy chỉnh nhóm thu chi." else "Customize spending groups.",
+        "RECURRING" to if (language == AppLanguage.VIETNAMESE) "Tiền nhà, Internet, điện nước." else "Rent, internet and utilities.",
+        "SPLIT" to if (language == AppLanguage.VIETNAMESE) "Chia hóa đơn với bạn bè." else "Split shared bills."
+    )
+    val icons = mapOf(
+        "ACCOUNTS" to Icons.Default.AccountBalanceWallet,
+        "BUDGETS" to Icons.Default.TrackChanges,
+        "CATEGORIES" to Icons.Default.Category,
+        "RECURRING" to Icons.Default.Repeat,
+        "SPLIT" to Icons.Default.Groups
+    )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(BrandCanvas),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                BrandMark(size = 42.dp)
+                Column {
+                    SectionHeader(Localization.getString("tools", language))
+                    Text(
+                        if (language == AppLanguage.VIETNAMESE) "Các công cụ phụ trợ cho ví của bạn." else "Companion tools for your wallet.",
+                        color = BrandMuted,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+        items(items) { (key, langKey) ->
+            AppCard(modifier = Modifier.fillMaxWidth().clickable { onSelectTool(key) }) {
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(modifier = Modifier.size(42.dp).background(BrandMint, AppShape), contentAlignment = Alignment.Center) {
+                            Icon(icons[key] ?: Icons.Default.Apps, contentDescription = null, tint = BrandGreenDark, modifier = Modifier.size(23.dp))
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(Localization.getString(langKey, language), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = BrandInk)
+                            Text(subtitles[key].orEmpty(), style = MaterialTheme.typography.bodySmall, color = BrandMuted)
+                        }
                     }
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = BrandMuted)
                 }
             }
         }
@@ -1092,26 +1598,43 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
         googleSignInLauncher.launch(client.signInIntent)
     }
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(BrandCanvas),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         item {
-            Text(Localization.getString("settings", language), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                BrandMark(size = 42.dp)
+                Column {
+                    SectionHeader(Localization.getString("settings", language))
+                    Text(
+                        if (language == AppLanguage.VIETNAMESE) "Tài khoản, sao lưu và ngôn ngữ." else "Account, backup and language.",
+                        color = BrandMuted,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
         }
 
         // ── Sao lưu và khôi phục ──────────────────────────────────────────
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            AppCard(modifier = Modifier.fillMaxWidth(), containerColor = BrandSurface) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Backup, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Box(modifier = Modifier.size(38.dp).background(BrandMint, AppShape), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Backup, contentDescription = null, tint = BrandGreenDark, modifier = Modifier.size(22.dp))
+                        }
                         Spacer(Modifier.width(8.dp))
-                        Text(Localization.getString("backup_title", language), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium)
+                        Text(Localization.getString("backup_title", language), fontWeight = FontWeight.Black, style = MaterialTheme.typography.titleMedium, color = BrandInk)
                     }
 
                     // Google Sign-In / Sign-Out
                     if (!isLoggedIn || driveToken == null) {
-                        Text(Localization.getString("sign_in_required", language), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        Text(Localization.getString("sign_in_required", language), style = MaterialTheme.typography.bodySmall, color = BrandMuted)
                         OutlinedButton(
                             onClick = { launchGoogleSignIn() },
+                            shape = AppShape,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -1121,11 +1644,11 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                     } else {
                         // Đã đăng nhập
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.AccountCircle, contentDescription = null, tint = BrandIncome, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(username, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
-                                Text(email, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                                Text(email, style = MaterialTheme.typography.bodySmall, color = BrandMuted)
                             }
                             TextButton(onClick = {
                                 com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -1139,11 +1662,11 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
 
                         // Thời gian backup gần nhất
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                            Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp), tint = BrandMuted)
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 "${Localization.getString("last_backup", language)}: ${viewModel.formatBackupTime(lastBackupTime, language)}",
-                                style = MaterialTheme.typography.bodySmall, color = Color.Gray
+                                style = MaterialTheme.typography.bodySmall, color = BrandMuted
                             )
                         }
 
@@ -1151,6 +1674,8 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                         Button(
                             onClick = { viewModel.backupNow(context) },
                             enabled = !isBackingUp,
+                            shape = AppShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             if (isBackingUp) {
@@ -1168,6 +1693,7 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                         OutlinedButton(
                             onClick = { showRestoreConfirm = true },
                             enabled = !isBackingUp,
+                            shape = AppShape,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -1194,15 +1720,16 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                         backupMessage?.let { msg ->
                             val isSuccess = msg.startsWith("Đã sao lưu") || msg.startsWith("Backup") || msg.startsWith("Đã khôi phục") || msg.startsWith("Restored")
                             Card(
+                                shape = AppShape,
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (isSuccess) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                                    containerColor = if (isSuccess) BrandIncomeSoft else BrandExpenseSoft
                                 )
                             ) {
                                 Text(
                                     msg,
                                     modifier = Modifier.padding(10.dp),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = if (isSuccess) Color(0xFF2E7D32) else Color(0xFFC62828)
+                                    color = if (isSuccess) BrandIncome else BrandExpense
                                 )
                             }
                         }
@@ -1213,18 +1740,20 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
 
         // ── Ngôn ngữ ─────────────────────────────────────────────────────
         item {
-            Card {
+            AppCard(containerColor = BrandSurface) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(Localization.getString("language", language), fontWeight = FontWeight.Bold)
+                    Text(Localization.getString("language", language), fontWeight = FontWeight.Bold, color = BrandInk)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ElevatedCard(
                             onClick = { if (language != AppLanguage.VIETNAMESE) langToSwitchTo = AppLanguage.VIETNAMESE },
-                            colors = CardDefaults.elevatedCardColors(containerColor = if (language == AppLanguage.VIETNAMESE) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
+                            shape = AppShape,
+                            colors = CardDefaults.elevatedCardColors(containerColor = if (language == AppLanguage.VIETNAMESE) BrandGoldSoft else BrandSurfaceAlt),
                             modifier = Modifier.weight(1f)
                         ) { Text("Tiếng Việt", modifier = Modifier.padding(16.dp).fillMaxWidth(), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) }
                         ElevatedCard(
                             onClick = { if (language != AppLanguage.ENGLISH) langToSwitchTo = AppLanguage.ENGLISH },
-                            colors = CardDefaults.elevatedCardColors(containerColor = if (language == AppLanguage.ENGLISH) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface),
+                            shape = AppShape,
+                            colors = CardDefaults.elevatedCardColors(containerColor = if (language == AppLanguage.ENGLISH) BrandGoldSoft else BrandSurfaceAlt),
                             modifier = Modifier.weight(1f)
                         ) { Text("English", modifier = Modifier.padding(16.dp).fillMaxWidth(), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) }
                     }

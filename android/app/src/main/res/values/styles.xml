@@ -9,7 +9,8 @@
     <style name="Theme.TuiThanTai" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">#FFFFFF</item>
-        <item name="android:colorAccent">#0F8F5F</item>
+        <item name="android:statusBarColor">#F7F8F2</item>
+        <item name="android:navigationBarColor">#F7F8F2</item>
+        <item name="android:colorAccent">#0B6B4B</item>
     </style>
 </resources>
