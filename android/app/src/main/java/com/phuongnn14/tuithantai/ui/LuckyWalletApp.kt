@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -2028,11 +2029,13 @@ fun ScanAiDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(0.94f),
+        properties = DialogProperties(usePlatformDefaultWidth = false),
         title = {
             Text(if (showDraftReview) Localization.getString("ocr_draft_label", language) else Localization.getString("scan_receipt", language))
         },
         text = {
-            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 430.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp)) {
                 if (showDraftReview) {
                     // ── Draft Review Form ──
                     Column(
@@ -2225,7 +2228,7 @@ fun ScanAiDialog(
                     }
                 } else {
                     // ── Scan / Choose Screen ──
-                    LazyColumn(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyColumn(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (isOcrRunning) {
                             item {
                                 Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -2236,19 +2239,40 @@ fun ScanAiDialog(
                                 }
                             }
                         } else {
+                            ocrWarning?.let { warning ->
+                                item {
+                                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)), modifier = Modifier.fillMaxWidth()) {
+                                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFE65100), modifier = Modifier.size(18.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(warning, fontSize = 12.sp, color = Color(0xFFE65100))
+                                        }
+                                    }
+                                }
+                            }
                             // ── Real Camera Preview ──
                             if (hasCameraPermission) {
                                 item {
                                     var imageCaptureRef by remember { mutableStateOf<ImageCapture?>(null) }
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(12.dp)).background(Color.Black),
-                                        contentAlignment = Alignment.BottomCenter
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(AppShape)
+                                            .background(BrandSurface)
+                                            .padding(10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        CameraPreviewContainer(onImageCaptureReady = { imageCaptureRef = it })
-                                        Row(
-                                            modifier = Modifier.padding(bottom = 12.dp).fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceEvenly
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(250.dp)
+                                                .clip(AppShape)
+                                                .background(Color.Black),
+                                            contentAlignment = Alignment.Center
                                         ) {
+                                            CameraPreviewContainer(onImageCaptureReady = { imageCaptureRef = it })
+                                        }
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                             // ── Chụp ảnh thật → OCR thật ──
                                             Button(
                                                 onClick = {
@@ -2293,32 +2317,31 @@ fun ScanAiDialog(
                                                         } catch (e: Exception) {
                                                             Log.e("ScanAiDialog", "Capture error: ${e.message}")
                                                             ocrWarning = if (language == AppLanguage.VIETNAMESE)
-                                                                "Lỗi: ${e.message}\nKiểm tra lại thủ công."
-                                                            else "Error: ${e.message}\nPlease review manually."
-                                                            // Vẫn chuyển sang draft dù lỗi,
-                                                            // để camera không hiện lại
-                                                            showDraftReview = true
+                                                                "Không lấy được ảnh. Bạn có thể chụp lại hoặc chọn ảnh từ thư viện."
+                                                            else "Could not capture the photo. Try again or pick from gallery."
+                                                            showDraftReview = false
                                                         } finally {
                                                             isOcrRunning = false
                                                         }
                                                     }
                                                 },
-                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                                modifier = Modifier.height(44.dp)
+                                                colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark),
+                                                modifier = Modifier.fillMaxWidth().height(52.dp),
+                                                shape = AppShape
                                             ) {
                                                 Icon(Icons.Default.CameraAlt, contentDescription = null)
-                                                Spacer(Modifier.width(6.dp))
-                                                Text(Localization.getString("take_photo", language), fontSize = 12.sp)
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(Localization.getString("take_photo", language), maxLines = 1)
                                             }
                                             // Gallery picker → OCR thật
-                                            Button(
+                                            OutlinedButton(
                                                 onClick = { galleryLauncher.launch("image/*") },
-                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                                                modifier = Modifier.height(44.dp)
+                                                modifier = Modifier.fillMaxWidth().height(50.dp),
+                                                shape = AppShape
                                             ) {
                                                 Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                                                Spacer(Modifier.width(6.dp))
-                                                Text(if (language == AppLanguage.VIETNAMESE) "Thư viện" else "Gallery", fontSize = 12.sp)
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(Localization.getString("pick_from_gallery", language), maxLines = 1)
                                             }
                                         }
                                     }
@@ -2326,10 +2349,10 @@ fun ScanAiDialog(
                             } else {
                                 item {
                                     // No camera permission: show gallery only
-                                    Button(onClick = { galleryLauncher.launch("image/*") }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                                    OutlinedButton(onClick = { galleryLauncher.launch("image/*") }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = AppShape) {
                                         Icon(Icons.Default.PhotoLibrary, contentDescription = null)
                                         Spacer(Modifier.width(8.dp))
-                                        Text(if (language == AppLanguage.VIETNAMESE) "Chọn ảnh hóa đơn từ thư viện (OCR thật)" else "Pick receipt from gallery (Real OCR)")
+                                        Text(Localization.getString("pick_from_gallery", language), maxLines = 1)
                                     }
                                 }
                             }
