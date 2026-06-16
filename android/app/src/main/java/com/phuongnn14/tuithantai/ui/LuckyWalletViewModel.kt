@@ -146,7 +146,9 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
                 category = mapCategoryId(suggestion.categoryId),
                 merchantName = suggestion.title,
                 items = emptyList(),
-                type = if (suggestion.ocrEngine.contains("income")) "INCOME" else "EXPENSE"
+                type = if (suggestion.ocrEngine.contains("income")) "INCOME" else "EXPENSE",
+                needsReview = suggestion.needsReview,
+                documentType = if (suggestion.amount == 0L && suggestion.labels.isNotEmpty()) "non_receipt" else "receipt"
             )
         } catch (e: Exception) {
             OcrResult(amount = 0.0, currency = "VND", title = "", category = "Khác")
@@ -154,6 +156,8 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private fun mapCategoryId(categoryId: String): String = when (categoryId) {
+        "food" -> "\u0102n u\u1ed1ng"
+        "travel" -> "Di chuy\u1ec3n"
         "food_and_drink", "coffee" -> "Ăn uống"
         "transport" -> "Di chuyển"
         "shopping" -> "Mua sắm"

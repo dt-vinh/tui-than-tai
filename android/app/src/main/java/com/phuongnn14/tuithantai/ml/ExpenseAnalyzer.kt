@@ -7,6 +7,7 @@ import android.net.Uri
 import android.util.Log
 import com.phuongnn14.tuithantai.BuildConfig
 import com.phuongnn14.tuithantai.data.CategoryEntity
+import com.phuongnn14.tuithantai.ocr.DocumentType
 import com.phuongnn14.tuithantai.ocr.MoneyParser
 import com.phuongnn14.tuithantai.ocr.OcrAnalyzer
 import com.phuongnn14.tuithantai.ocr.OcrResult
@@ -53,6 +54,7 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
     }
 
     private val ocrAnalyzer = OcrAnalyzer()
+    private val imageLabelAnalyzer by lazy { ImageLabelAnalyzer() }
     private val gemini by lazy { GeminiReceiptAnalyzer(BuildConfig.GEMINI_API_KEY) }
 
     suspend fun analyze(
@@ -96,11 +98,25 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
         // ── STAGE 2: MLKit OCR + SmartTotalResolver ───────────────────────────
         val selector = engineSelector ?: OcrEngineSelector(context)
         val t1 = System.currentTimeMillis()
-        val engineResult = runCatching { selector.recognize(bitmap) }
+        val engineAttempt = runCatching { selector.recognize(bitmap) }
             .onFailure { Log.e(TAG, "MLKit OCR failed: ${it.message}") }
-            .getOrElse {
-                return ExpenseSuggestion(needsReview = true, reviewFields = listOf("total_amount"))
-            }
+        if (engineAttempt.isFailure) {
+            val labels = imageLabelAnalyzer.label(scaleBitmap(bitmap, GEMINI_MAX_SIDE))
+            val objectSuggestion = ObjectCategoryClassifier.classify(labels)
+            return ExpenseSuggestion(
+                title = objectSuggestion.title,
+                amount = 0L,
+                categoryId = objectSuggestion.categoryId,
+                ocrText = "",
+                labels = labels.map { it.text },
+                needsReview = true,
+                reviewFields = listOf("total_amount"),
+                ocrEngine = "image_labeling",
+                ocrConfidence = objectSuggestion.confidence,
+                ocrElapsedMs = System.currentTimeMillis() - t1
+            )
+        }
+        val engineResult = engineAttempt.getOrThrow()
 
         val elapsed = System.currentTimeMillis() - t1
         Log.d(TAG, "MLKit OCR in ${elapsed}ms: engine=${engineResult.engineName} " +
@@ -115,14 +131,31 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
         Log.d(TAG, "SmartResolver: total=${result.totalAmount} conf=${result.confidence} " +
             "cat=${result.categoryId} needsReview=${result.needsUserReview}")
 
+        val shouldLabelImage = result.categoryId == "other" ||
+            result.totalAmount == null ||
+            result.documentType == DocumentType.NOT_RECEIPT
+        val labels = if (shouldLabelImage) {
+            imageLabelAnalyzer.label(scaleBitmap(bitmap, GEMINI_MAX_SIDE))
+        } else {
+            emptyList()
+        }
+        val objectSuggestion = ObjectCategoryClassifier.classify(labels)
+        val categoryId = when {
+            objectSuggestion.categoryId != "other" &&
+                (result.categoryId == "other" || result.totalAmount == null) ->
+                objectSuggestion.categoryId
+            else -> result.categoryId
+        }
         val needsReview = result.needsUserReview || result.confidence < LOCAL_REVIEW_THRESHOLD
 
         return ExpenseSuggestion(
-            title        = result.merchantName ?: inferTitle(engineResult.rawText),
+            title        = result.merchantName
+                ?: inferTitle(engineResult.rawText, labels.map { it.text })
+                ?: objectSuggestion.title,
             amount       = result.totalAmount?.toLong() ?: 0L,
-            categoryId   = result.categoryId,
+            categoryId   = categoryId,
             ocrText      = engineResult.rawText,
-            labels       = emptyList(),
+            labels       = labels.map { it.text },
             needsReview  = needsReview,
             reviewFields = if (needsReview && "total_amount" !in result.reviewFields)
                                result.reviewFields + "total_amount"
@@ -152,12 +185,11 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
         )
     }
 
-    fun inferTitle(text: String, labels: List<String> = emptyList()): String =
+    fun inferTitle(text: String, labels: List<String> = emptyList()): String? =
         text.lineSequence()
             .map { it.trim() }
             .firstOrNull { it.length in 3..48 && !it.any(Char::isDigit) }
             ?: labels.firstOrNull { it.length in 3..48 }
-            ?: ""
 
     // ── Legacy helpers kept for unit-test compatibility ───────────────────────
 
