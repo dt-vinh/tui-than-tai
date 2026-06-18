@@ -34,21 +34,30 @@ import java.net.URL
 class GeminiReceiptAnalyzer(private val apiKey: String) {
 
     private val TAG = "GeminiOCR"
+    private val apiKeys: List<String> = apiKey
+        .split(',', ';', '\n')
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
 
     /** Returns null if API key is blank, request fails, or JSON is invalid. */
     suspend fun analyze(bitmap: Bitmap): OcrResult? {
-        if (apiKey.isBlank()) {
-            Log.w(TAG, "Gemini API key not set — skipping fallback")
+        if (apiKeys.isEmpty()) {
+            Log.w(TAG, "Gemini API key not set - skipping fallback")
             return null
         }
         return withContext(Dispatchers.IO) {
-            runCatching { callGemini(bitmap) }
-                .onFailure { Log.e(TAG, "Gemini call failed: ${it.message}") }
-                .getOrNull()
+            for ((index, key) in apiKeys.withIndex()) {
+                val result = runCatching { callGemini(bitmap, key) }
+                    .onFailure { Log.e(TAG, "Gemini key ${index + 1} failed: ${it.message}") }
+                    .getOrNull()
+                if (result != null) return@withContext result
+            }
+            null
         }
     }
 
-    private fun callGemini(bitmap: Bitmap): OcrResult {
+    private fun callGemini(bitmap: Bitmap, apiKey: String): OcrResult {
         val jpegBase64 = bitmapToBase64(bitmap, maxSide = 1280)
 
         val requestBody = JSONObject().apply {

@@ -12,6 +12,13 @@ val localProps = Properties().also { props ->
     if (f.exists()) f.inputStream().use { props.load(it) }
 }
 
+fun String.asBuildConfigString(): String =
+    replace("\\", "\\\\").replace("\"", "\\\"")
+
+val geminiApiKeys: String =
+    localProps.getProperty("gemini.api.keys")
+        ?: localProps.getProperty("gemini.api.key", "")
+
 android {
     namespace = "com.phuongnn14.tuithantai"
     compileSdk = 35
@@ -26,7 +33,7 @@ android {
         buildConfigField("String", "DEFAULT_API_BASE_URL", "\"https://api.your-domain.com\"")
         buildConfigField(
             "String", "GEMINI_API_KEY",
-            "\"${localProps.getProperty("gemini.api.key", "")}\""
+            "\"${geminiApiKeys.asBuildConfigString()}\""
         )
     }
 
