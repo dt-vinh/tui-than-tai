@@ -79,12 +79,12 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
     init {
         viewModelScope.launch {
             // Chạy song song: load settings + prepopulate data
-            val settingsJob = launch { loadSettings() }
-            val prepopJob  = launch { prepopulateDataIfNeeded() }
-            settingsJob.join()
-            prepopJob.join()
-            // Báo splash screen có thể ẩn đi
-            _isAppReady.value = true
+            try {
+                loadSettings()
+            } finally {
+                _isAppReady.value = true
+            }
+            prepopulateDataIfNeeded()
         }
     }
 

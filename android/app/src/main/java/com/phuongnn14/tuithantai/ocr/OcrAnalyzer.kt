@@ -92,13 +92,14 @@ class OcrAnalyzer {
     private val ID_LINE_TOKENS = setOf(
         "ma giao dich", "transaction id", "so tham chieu", "reference",
         "ma don", "order id", "invoice number", "so hoa don",
-        "bien so", "ma kh", "so dien thoai", "phone",
+        "bien so", "ma kh", "so dien thoai", "dien thoai", "di dong",
+        "hotline", "phone", "tel", "may ban", "sdt",
         // Account / card numbers — never monetary amounts
         "tai khoan", "so tai khoan", "so the", "so tk",
         "account number", "card number",
         // Time / status lines
         "thoi gian", "trang thai", "ngan hang", "nguoi nhan", "nguoi chuyen",
-        "noi dung", "tin nhan"
+        "noi dung", "tin nhan", "gio vao", "gio ra", "ngay:"
     )
 
     private fun buildCandidates(
@@ -107,23 +108,50 @@ class OcrAnalyzer {
     ): List<TotalResolver.Candidate> {
         val result = mutableListOf<TotalResolver.Candidate>()
         val totalLines = lines.size.coerceAtLeast(1)
+        var pendingTotalLabel: String? = null
+        var pendingTotalLabelIndex = -1
         for ((index, line) in lines.withIndex()) {
             val norm = normalizeText(line)
             // Skip lines that are reference IDs, not monetary amounts
-            if (ID_LINE_TOKENS.any { norm.contains(it) }) continue
-            val amountStr = extractAmountStringFromLine(line) ?: continue
+            if (ID_LINE_TOKENS.any { norm.contains(it) }) {
+                pendingTotalLabel = null
+                continue
+            }
+            val amountStr = extractAmountStringFromLine(line)
+            if (amountStr == null) {
+                if (isStandaloneTotalLabel(norm)) {
+                    pendingTotalLabel = line
+                    pendingTotalLabelIndex = index
+                } else if (norm.isNotBlank()) {
+                    pendingTotalLabel = null
+                }
+                continue
+            }
             val parsed = MoneyParser.parse(amountStr, currency) ?: continue
             // Skip numbers with 11+ consecutive digits → account numbers / transaction IDs
             val rawDigits = amountStr.filter { it.isDigit() }
-            if (rawDigits.length > 10) continue
+            if (rawDigits.length > 10 || isLikelyPhoneNumber(line, rawDigits)) {
+                pendingTotalLabel = null
+                continue
+            }
+            val candidateLabel = if (
+                pendingTotalLabel != null &&
+                index - pendingTotalLabelIndex in 1..2 &&
+                !hasPriorityTotalKeyword(norm)
+            ) {
+                "$pendingTotalLabel $line"
+            } else {
+                line
+            }
             result.add(
                 TotalResolver.Candidate(
-                    label = line,
+                    label = candidateLabel,
                     amount = parsed.amount,
                     lineIndex = index,
                     totalLines = totalLines
                 )
             )
+            pendingTotalLabel = null
         }
         return result
     }
@@ -135,6 +163,29 @@ class OcrAnalyzer {
             """(?<![A-Za-z])([$]?\s*[0-9][0-9OoО,.\s]*[0-9]\s*(?:VND|vnđ|[đĐdkK])?|[0-9]+[Kk])(?![A-Za-z0-9])"""
         ).findAll(line).lastOrNull()
         return match?.value?.trim()
+    }
+
+    private fun isStandaloneTotalLabel(normLine: String): Boolean =
+        hasPriorityTotalKeyword(normLine) &&
+            !normLine.contains("don gia") &&
+            !normLine.contains("ten mon") &&
+            !normLine.contains("so luong") &&
+            !normLine.contains("sl ") &&
+            normLine.length <= 40
+
+    private fun hasPriorityTotalKeyword(normLine: String): Boolean =
+        normLine.contains("tong cong") ||
+            normLine.contains("tong thanh toan") ||
+            normLine.contains("tong tien") ||
+            normLine.contains("thanh tien") ||
+            normLine.contains("amount due") ||
+            normLine.contains("grand total") ||
+            normLine.contains("total")
+
+    private fun isLikelyPhoneNumber(line: String, rawDigits: String): Boolean {
+        val norm = normalizeText(line)
+        if (ID_LINE_TOKENS.any { norm.contains(it) }) return true
+        return rawDigits.length in 9..11 && rawDigits.startsWith("0") && !hasPriorityTotalKeyword(norm)
     }
 
     private fun detectCurrency(text: String): String {

@@ -123,6 +123,40 @@ class OcrAnalyzerTest {
 
     // ── Product photo / not receipt ─────────────────────────────────────────
 
+    @Test fun `com nieu bill - total label split from amount and phone ignored`() {
+        val ocrText = """
+            COM NIEU TO UYEN
+            101-C2 Pham Ngoc Thach - Dong Da - Ha Noi
+            May ban: 0243 352 6662
+            HOA DON THANH TOAN
+            So HD: 03242
+            Gio vao: 19.37
+            Gio ra: 20.33
+            Ten mon SL Don gia Thanh tien
+            Tom xao tran rau lang 2 100 000 200 000
+            Dau Xot suon sun thit 0,7 100 000 70 000
+            Chim quay 1 180 000 180 000
+            Suon xao chua ngot mieng 8 16 000 128 000
+            Ca muoi bat 1 10 000 10 000
+            Canh Cua 1 55 000 55 000
+            Ca lang nuong Ca trinh nuong m 1 140 000 140 000
+            Com 1 40 000 40 000
+            Bia Ken 1 30 000 30 000
+            Thanh tien :
+            853 000
+            Thanh tien VAT :
+            Tong cong:
+            853 000
+            CASH(VND) - 853 000
+            Di dong: 0378867762
+        """.trimIndent()
+
+        val result = analyzer.analyze(ocrText)
+
+        assertEquals(853_000.0, result.totalAmount!!, 0.0)
+        assertNotEquals(378_867_762.0, result.totalAmount)
+    }
+
     @Test fun `product photo - merchant name not a forbidden placeholder`() {
         val result = analyzer.analyze(
             "iPhone 16 Pro Max\nMàu: Titan tự nhiên\nGiá niêm yết: 33.990.000đ"

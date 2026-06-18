@@ -34,7 +34,9 @@ object TotalResolver {
         "tong tien thanh toan"  to 10,
         "tong tien"             to  8,
         "tong tam tinh"         to  7,
+        "thanh tien"            to  9,
         "thanh toan"            to  8,
+        "tien phai tra"         to  9,
         "phai tra"              to  8,
         // English
         "grand total"           to 10,
@@ -75,7 +77,8 @@ object TotalResolver {
         "change", "cash", "discount", "tax", "received",
         "balance", "subtotal", "unit price", "price each",
         // Common
-        "tip", "gratuity", "service charge"
+        "tip", "gratuity", "service charge",
+        "so dien thoai", "dien thoai", "di dong", "hotline", "phone", "tel"
     )
 
     // ── Universal currency symbols / codes ────────────────────────────────────
