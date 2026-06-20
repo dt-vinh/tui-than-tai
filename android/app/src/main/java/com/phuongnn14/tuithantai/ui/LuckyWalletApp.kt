@@ -56,6 +56,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.phuongnn14.tuithantai.capture.ExpenseCaptureResult
+import com.phuongnn14.tuithantai.capture.TransactionType as CaptureTransactionType
 import com.phuongnn14.tuithantai.data.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -311,6 +313,7 @@ fun HomeScreen(
     val username by viewModel.userName.collectAsStateWithLifecycle()
     val transactions by viewModel.transactionsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val accounts by viewModel.accountsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val categories by viewModel.categoriesFlow.collectAsStateWithLifecycle(initialValue = emptyList<CategoryEntity>())
 
     val currency = "VND"
     val totalBalance = accounts.sumOf { it.balance }
@@ -319,6 +322,7 @@ fun HomeScreen(
 
     var showAddTxDialog by remember { mutableStateOf<String?>(null) }
     var showScanDialog by remember { mutableStateOf(false) }
+    var pendingCaptureResult by remember { mutableStateOf<ExpenseCaptureResult?>(null) }
     var selectedTx by remember { mutableStateOf<TransactionEntity?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -500,7 +504,31 @@ fun HomeScreen(
         AddTransactionDialog(type = type, viewModel = viewModel, language = language, onDismiss = { showAddTxDialog = null })
     }
     if (showScanDialog) {
-        ScanAiDialog(viewModel = viewModel, language = language, onDismiss = { showScanDialog = false })
+        MoneyScanCameraScreen(
+            language = language,
+            onDismiss = { showScanDialog = false },
+            onResult = { result ->
+                pendingCaptureResult = result
+                showScanDialog = false
+            }
+        )
+    }
+    pendingCaptureResult?.let { result ->
+        CaptureResultConfirmationScreen(
+            result = result,
+            accounts = accounts,
+            categories = categories,
+            language = language,
+            onDismiss = { pendingCaptureResult = null },
+            onRetry = {
+                pendingCaptureResult = null
+                showScanDialog = true
+            },
+            onConfirm = { title, amount, txType, category, accountName, date, note, imageUri ->
+                viewModel.addTransaction(title, amount, txType, category, accountName, date, note, imageUri)
+                pendingCaptureResult = null
+            }
+        )
     }
     selectedTx?.let { tx ->
         AlertDialog(
@@ -1813,6 +1841,7 @@ fun AddTransactionDialog(
     var inlineError by remember { mutableStateOf<String?>(null) }
     var expCatDropdown by remember { mutableStateOf(false) }
     var expAccDropdown by remember { mutableStateOf(false) }
+    var showObjectCapture by remember { mutableStateOf(false) }
 
     val hasNoAccounts = accounts.isEmpty()
 
@@ -1839,7 +1868,21 @@ fun AddTransactionDialog(
                     }
                 } else {
                     OutlinedTextField(value = amount, onValueChange = { amount = formatVndInput(it) }, label = { Text(Localization.getString("amount", language)) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = title, onValueChange = { title = it; inlineError = null }, label = { Text(Localization.getString("title", language)) }, modifier = Modifier.fillMaxWidth(), isError = inlineError != null)
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = title,
+                            onValueChange = { title = it; inlineError = null },
+                            label = { Text(Localization.getString("title", language)) },
+                            modifier = Modifier.weight(1f),
+                            isError = inlineError != null
+                        )
+                        IconButton(
+                            onClick = { showObjectCapture = true },
+                            modifier = Modifier.size(52.dp).clip(AppShape).background(BrandGreenDark)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = "Chụp vật thể", tint = Color.White)
+                        }
+                    }
                     inlineError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
                     Box {
                         OutlinedButton(onClick = { expCatDropdown = true }, modifier = Modifier.fillMaxWidth()) {
@@ -1876,6 +1919,20 @@ fun AddTransactionDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(Localization.getString("cancel", language)) } }
     )
+
+    if (showObjectCapture) {
+        ObjectCaptureCameraScreen(
+            transactionType = if (type == "INCOME") CaptureTransactionType.INCOME else CaptureTransactionType.EXPENSE,
+            onDismiss = { showObjectCapture = false },
+            onResult = { result ->
+                result.amount?.let { amount = formatVndInput(it.toString()) }
+                result.productNote?.takeIf { it.isNotBlank() }?.let { title = it }
+                result.categoryName?.takeIf { candidate -> subsetCats.any { it.name == candidate } }?.let { categorySelection = it }
+                result.rawOcrText?.takeIf { it.isNotBlank() }?.let { note = it }
+                showObjectCapture = false
+            }
+        )
+    }
 }
 
 // ─── Thermal Receipt Card ─────────────────────────────────────────────────────

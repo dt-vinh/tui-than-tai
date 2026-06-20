@@ -16,27 +16,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Splash screen phải được gọi TRƯỚC super.onCreate()
-        val splashScreen = installSplashScreen()
-        val splashStartMs = System.currentTimeMillis()
+        installSplashScreen()
 
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // Giữ splash screen cho đến khi ViewModel load settings xong
-        // → user thấy icon app ngay lập tức thay vì màn hình trắng
-        splashScreen.setKeepOnScreenCondition {
-            !viewModel.isAppReady.value &&
-                System.currentTimeMillis() - splashStartMs < MAX_SPLASH_WAIT_MS
-        }
 
         setContent {
             TuiThanTaiTheme {
                 LuckyWalletApp(viewModel = viewModel)
             }
         }
-    }
-
-    private companion object {
-        const val MAX_SPLASH_WAIT_MS = 700L
     }
 }
