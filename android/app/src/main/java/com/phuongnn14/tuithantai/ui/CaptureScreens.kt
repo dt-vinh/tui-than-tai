@@ -191,7 +191,7 @@ fun MoneyScanCameraScreen(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = ScanCanvas) {
-            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -200,7 +200,7 @@ fun MoneyScanCameraScreen(
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Hủy", tint = ScanGreenDark)
                     }
-                    Text("Quét AI", fontSize = 28.sp, fontWeight = FontWeight.Black, color = ScanGreenDark)
+                    Text("Quét AI", fontSize = 20.sp, fontWeight = FontWeight.Black, color = ScanGreenDark)
                     IconButton(onClick = { galleryLauncher.launch("image/*") }) {
                         Icon(Icons.Default.PhotoLibrary, contentDescription = "Chọn ảnh", tint = ScanGreenDark)
                     }
@@ -210,27 +210,26 @@ fun MoneyScanCameraScreen(
                     text = "Chụp hoặc chọn hóa đơn để AI phân tích nội dung",
                     color = ScanMuted,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp)
+                    fontSize = 13.sp,
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 12.dp)
                 )
 
-                LazyColumn(
+                Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    contentPadding = PaddingValues(bottom = 18.dp)
+                    verticalArrangement = Arrangement.Top
                 ) {
-                    item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = ScanLargeShape,
+                            shape = RoundedCornerShape(20.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .aspectRatio(0.95f)
-                                        .clip(RoundedCornerShape(22.dp))
+                                        .height(190.dp)
+                                        .clip(RoundedCornerShape(18.dp))
                                         .background(Color.Black),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -296,7 +295,7 @@ fun MoneyScanCameraScreen(
                                             ) {
                                                 Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = ScanGreen, modifier = Modifier.size(18.dp))
                                                 Spacer(Modifier.width(6.dp))
-                                                Text("Tự động nhận diện", color = ScanGreen, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                Text("Tự động nhận diện", color = ScanGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                             }
                                         }
                                     }
@@ -304,23 +303,24 @@ fun MoneyScanCameraScreen(
 
                                 OutlinedButton(
                                     onClick = { galleryLauncher.launch("image/*") },
-                                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                                    modifier = Modifier.fillMaxWidth().height(44.dp),
                                     shape = ScanShape
                                 ) {
                                     Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = ScanGreen)
                                     Spacer(Modifier.width(10.dp))
-                                    Text("Chọn từ thư viện", color = ScanGreen, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    Text("Chọn từ thư viện", color = ScanGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 }
 
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Nhập văn bản giao dịch tự chọn:", fontWeight = FontWeight.Bold, color = ScanInk)
+                                    Text("Nhập văn bản giao dịch tự chọn:", fontWeight = FontWeight.Bold, color = ScanInk, fontSize = 13.sp)
                                     OutlinedTextField(
                                         value = manualText,
                                         onValueChange = { manualText = it },
-                                        modifier = Modifier.fillMaxWidth().height(132.dp),
-                                        placeholder = { Text("Ví dụ: chuyển khoản MB Bank 50.000đ") },
-                                        supportingText = { Text("${manualText.length}/200") },
-                                        maxLines = 5
+                                        modifier = Modifier.fillMaxWidth().height(82.dp),
+                                        placeholder = { Text("Ví dụ: chuyển khoản MB Bank 50.000đ", fontSize = 13.sp) },
+                                        supportingText = { Text("${manualText.length}/200", fontSize = 11.sp) },
+                                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
+                                        maxLines = 3
                                     )
                                     Button(
                                         onClick = {
@@ -328,13 +328,13 @@ fun MoneyScanCameraScreen(
                                             if (trimmed.isNotEmpty()) finishWithRawText(trimmed)
                                         },
                                         enabled = manualText.isNotBlank(),
-                                        modifier = Modifier.align(Alignment.End),
-                                        shape = CircleShape,
+                                        modifier = Modifier.align(Alignment.End).height(40.dp),
+                                        shape = ScanShape,
                                         colors = ButtonDefaults.buttonColors(containerColor = ScanGreen)
                                     ) {
-                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(6.dp))
-                                        Text("Phân tích")
+                                        Text("Phân tích", fontSize = 13.sp)
                                     }
                                 }
 
@@ -343,19 +343,13 @@ fun MoneyScanCameraScreen(
                                 }
 
                                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                                    Text("Hủy bỏ", color = ScanGreenDark, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                    Text("Hủy bỏ", color = ScanGreenDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 }
                             }
                         }
-                    }
-
-                    if (lastRawText.isNotBlank()) {
-                        item {
-                            RawOcrPreview(rawText = lastRawText)
-                        }
-                    }
                 }
 
+                Spacer(Modifier.height(10.dp))
                 Button(
                     onClick = {
                         val capture = imageCapture ?: return@Button
@@ -375,13 +369,13 @@ fun MoneyScanCameraScreen(
                         }
                     },
                     enabled = hasCameraPermission && !isProcessing,
-                    modifier = Modifier.fillMaxWidth().height(64.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = ScanGreen)
+                    modifier = Modifier.fillMaxWidth().height(46.dp),
+                    shape = ScanShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = ScanGreenDark)
                 ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(30.dp))
-                    Spacer(Modifier.width(14.dp))
-                    Text("Chụp ảnh hóa đơn", fontSize = 22.sp, fontWeight = FontWeight.Black)
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Chụp ảnh hóa đơn", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -457,7 +451,7 @@ fun ObjectCaptureCameraScreen(
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.Close, contentDescription = "Hủy", tint = Color.White)
                     }
-                    Text("Chụp vật thể", color = Color.White, fontWeight = FontWeight.Black, fontSize = 24.sp)
+                    Text("Chụp vật thể", color = Color.White, fontWeight = FontWeight.Black, fontSize = 20.sp)
                 }
 
                 Box(
@@ -483,7 +477,7 @@ fun ObjectCaptureCameraScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(
                         onClick = { galleryLauncher.launch("image/*") },
-                        modifier = Modifier.weight(1f).height(56.dp),
+                        modifier = Modifier.weight(1f).height(48.dp),
                         shape = CircleShape
                     ) {
                         Icon(Icons.Default.PhotoLibrary, contentDescription = null)
@@ -506,7 +500,7 @@ fun ObjectCaptureCameraScreen(
                             }
                         },
                         enabled = hasCameraPermission && !isProcessing,
-                        modifier = Modifier.weight(1f).height(56.dp),
+                        modifier = Modifier.weight(1f).height(48.dp),
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(containerColor = ScanDanger)
                     ) {
@@ -582,7 +576,7 @@ fun CaptureResultConfirmationScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         TextButton(onClick = onDismiss) { Text("Hủy", color = Color.White.copy(alpha = 0.8f)) }
-                        Text("Xác nhận giao dịch", color = Color.White, fontWeight = FontWeight.Black, fontSize = 20.sp)
+                        Text("Xác nhận giao dịch", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
                         IconButton(onClick = onRetry) {
                             Icon(Icons.Default.Refresh, contentDescription = "Chụp lại", tint = Color.White.copy(alpha = 0.8f))
                         }
@@ -619,7 +613,7 @@ fun CaptureResultConfirmationScreen(
                                     text = if (amountValue > 0.0) "$signedPrefix ${formatMoney(amountValue, result.currency, language)}" else "Cần nhập số tiền",
                                     color = Color.White,
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 34.sp,
+                                    fontSize = 28.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -724,7 +718,7 @@ fun CaptureResultConfirmationScreen(
 
                             HorizontalDivider()
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                                OutlinedButton(onClick = onRetry, modifier = Modifier.weight(1f).height(52.dp), shape = CircleShape) {
+                                OutlinedButton(onClick = onRetry, modifier = Modifier.weight(1f).height(48.dp), shape = CircleShape) {
                                     Icon(Icons.Default.CameraAlt, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
                                     Text("Chụp lại")
@@ -739,7 +733,7 @@ fun CaptureResultConfirmationScreen(
                                             else -> onConfirm(title.trim(), amount, txTypeValue, category, account, date, note, result.sourceImageUri)
                                         }
                                     },
-                                    modifier = Modifier.weight(1f).height(52.dp),
+                                    modifier = Modifier.weight(1f).height(48.dp),
                                     shape = CircleShape,
                                     colors = ButtonDefaults.buttonColors(containerColor = ScanDanger)
                                 ) {
