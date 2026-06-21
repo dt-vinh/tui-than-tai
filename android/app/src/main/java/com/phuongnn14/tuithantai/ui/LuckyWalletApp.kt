@@ -12,6 +12,7 @@ import androidx.camera.view.PreviewView
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -39,6 +40,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +58,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.phuongnn14.tuithantai.R
 import com.phuongnn14.tuithantai.capture.ExpenseCaptureResult
 import com.phuongnn14.tuithantai.capture.TransactionType as CaptureTransactionType
 import com.phuongnn14.tuithantai.data.*
@@ -127,28 +130,13 @@ private fun BrandMark(
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
 ) {
-    Box(
+    Image(
+        painter = painterResource(id = R.drawable.app_logo),
+        contentDescription = null,
         modifier = modifier
             .size(size)
-            .background(BrandGreenDark, AppShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            Icons.Default.AccountBalanceWallet,
-            contentDescription = null,
-            tint = BrandGold,
-            modifier = Modifier.size(size * 0.55f)
-        )
-        Icon(
-            Icons.Default.Star,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(size * 0.12f)
-                .size(size * 0.22f)
-        )
-    }
+            .clip(AppShape)
+    )
 }
 
 @Composable

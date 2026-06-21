@@ -191,7 +191,7 @@ fun MoneyScanCameraScreen(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = ScanCanvas) {
-            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -219,16 +219,20 @@ fun MoneyScanCameraScreen(
                     verticalArrangement = Arrangement.Top
                 ) {
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().weight(1f),
                             shape = RoundedCornerShape(20.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
-                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(
+                                modifier = Modifier.padding(10.dp).fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(190.dp)
+                                        .weight(1f)
+                                        .heightIn(min = 270.dp)
                                         .clip(RoundedCornerShape(18.dp))
                                         .background(Color.Black),
                                     contentAlignment = Alignment.Center
@@ -349,7 +353,7 @@ fun MoneyScanCameraScreen(
                         }
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = {
                         val capture = imageCapture ?: return@Button
