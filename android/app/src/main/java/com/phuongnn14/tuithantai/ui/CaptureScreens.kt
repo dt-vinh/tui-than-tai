@@ -191,48 +191,56 @@ fun MoneyScanCameraScreen(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = ScanCanvas) {
-            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .padding(bottom = 144.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 8.dp)
                 ) {
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Hủy", tint = ScanGreenDark)
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            IconButton(onClick = onDismiss) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "H\u1ee7y", tint = ScanGreenDark)
+                            }
+                            Text("Qu\u00e9t AI", fontSize = 20.sp, fontWeight = FontWeight.Black, color = ScanGreenDark)
+                            IconButton(onClick = { galleryLauncher.launch("image/*") }) {
+                                Icon(Icons.Default.PhotoLibrary, contentDescription = "Ch\u1ecdn \u1ea3nh", tint = ScanGreenDark)
+                            }
+                        }
                     }
-                    Text("Quét AI", fontSize = 20.sp, fontWeight = FontWeight.Black, color = ScanGreenDark)
-                    IconButton(onClick = { galleryLauncher.launch("image/*") }) {
-                        Icon(Icons.Default.PhotoLibrary, contentDescription = "Chọn ảnh", tint = ScanGreenDark)
+
+                    item {
+                        Text(
+                            text = "Ch\u1ee5p ho\u1eb7c ch\u1ecdn h\u00f3a \u0111\u01a1n \u0111\u1ec3 AI ph\u00e2n t\u00edch n\u1ed9i dung",
+                            color = ScanMuted,
+                            textAlign = TextAlign.Center,
+                            fontSize = 13.sp,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
-                }
 
-                Text(
-                    text = "Chụp hoặc chọn hóa đơn để AI phân tích nội dung",
-                    color = ScanMuted,
-                    textAlign = TextAlign.Center,
-                    fontSize = 13.sp,
-                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 12.dp)
-                )
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Top
-                ) {
+                    item {
                         Card(
-                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
                             Column(
-                                modifier = Modifier.padding(10.dp).fillMaxHeight(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .weight(1f)
-                                        .heightIn(min = 270.dp)
+                                        .height(330.dp)
                                         .clip(RoundedCornerShape(18.dp))
                                         .background(Color.Black),
                                     contentAlignment = Alignment.Center
@@ -271,7 +279,7 @@ fun MoneyScanCameraScreen(
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(44.dp))
                                             Spacer(Modifier.height(8.dp))
-                                            Text("Cần quyền camera", color = Color.White)
+                                            Text("C\u1ea7n quy\u1ec1n camera", color = Color.White)
                                         }
                                     }
 
@@ -284,7 +292,7 @@ fun MoneyScanCameraScreen(
                                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                                 CircularProgressIndicator(color = Color.White)
                                                 Spacer(Modifier.height(10.dp))
-                                                Text("Đang quét...", color = Color.White, fontWeight = FontWeight.Bold)
+                                                Text("\u0110ang qu\u00e9t...", color = Color.White, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     } else {
@@ -299,7 +307,7 @@ fun MoneyScanCameraScreen(
                                             ) {
                                                 Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = ScanGreen, modifier = Modifier.size(18.dp))
                                                 Spacer(Modifier.width(6.dp))
-                                                Text("Tự động nhận diện", color = ScanGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                Text("T\u1ef1 \u0111\u1ed9ng nh\u1eadn di\u1ec7n", color = ScanGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                             }
                                         }
                                     }
@@ -307,53 +315,45 @@ fun MoneyScanCameraScreen(
 
                                 OutlinedButton(
                                     onClick = { galleryLauncher.launch("image/*") },
-                                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                                    modifier = Modifier.fillMaxWidth().height(46.dp),
                                     shape = ScanShape
                                 ) {
                                     Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = ScanGreen)
                                     Spacer(Modifier.width(10.dp))
-                                    Text("Chọn từ thư viện", color = ScanGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Text("Ch\u1ecdn t\u1eeb th\u01b0 vi\u1ec7n", color = ScanGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 }
 
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Nhập văn bản giao dịch tự chọn:", fontWeight = FontWeight.Bold, color = ScanInk, fontSize = 13.sp)
-                                    OutlinedTextField(
-                                        value = manualText,
-                                        onValueChange = { manualText = it },
-                                        modifier = Modifier.fillMaxWidth().height(82.dp),
-                                        placeholder = { Text("Ví dụ: chuyển khoản MB Bank 50.000đ", fontSize = 13.sp) },
-                                        supportingText = { Text("${manualText.length}/200", fontSize = 11.sp) },
-                                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
-                                        maxLines = 3
-                                    )
-                                    Button(
-                                        onClick = {
-                                            val trimmed = manualText.trim()
-                                            if (trimmed.isNotEmpty()) finishWithRawText(trimmed)
-                                        },
-                                        enabled = manualText.isNotBlank(),
-                                        modifier = Modifier.align(Alignment.End).height(40.dp),
-                                        shape = ScanShape,
-                                        colors = ButtonDefaults.buttonColors(containerColor = ScanGreen)
-                                    ) {
-                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("Phân tích", fontSize = 13.sp)
-                                    }
+                                Text("Nh\u1eadp v\u0103n b\u1ea3n giao d\u1ecbch t\u1ef1 ch\u1ecdn:", fontWeight = FontWeight.Bold, color = ScanInk, fontSize = 13.sp)
+                                OutlinedTextField(
+                                    value = manualText,
+                                    onValueChange = { manualText = it },
+                                    modifier = Modifier.fillMaxWidth().height(86.dp),
+                                    placeholder = { Text("V\u00ed d\u1ee5: chuy\u1ec3n kho\u1ea3n MB Bank 50.000\u0111", fontSize = 13.sp) },
+                                    supportingText = { Text("${manualText.length}/200", fontSize = 11.sp) },
+                                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
+                                    maxLines = 3
+                                )
+                                Button(
+                                    onClick = {
+                                        val trimmed = manualText.trim()
+                                        if (trimmed.isNotEmpty()) finishWithRawText(trimmed)
+                                    },
+                                    enabled = manualText.isNotBlank(),
+                                    modifier = Modifier.align(Alignment.End).height(40.dp),
+                                    shape = ScanShape,
+                                    colors = ButtonDefaults.buttonColors(containerColor = ScanGreen)
+                                ) {
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Ph\u00e2n t\u00edch", fontSize = 13.sp)
                                 }
 
-                                errorText?.let {
-                                    WarningStrip(text = it)
-                                }
-
-                                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                                    Text("Hủy bỏ", color = ScanGreenDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                }
+                                errorText?.let { WarningStrip(text = it) }
                             }
                         }
+                    }
                 }
 
-                Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = {
                         val capture = imageCapture ?: return@Button
@@ -366,25 +366,30 @@ fun MoneyScanCameraScreen(
                                 lastRawText = rawText
                                 finishWithRawText(rawText, uri)
                             } catch (e: Exception) {
-                                errorText = "Không chụp được ảnh. Hãy thử lại hoặc chọn từ thư viện."
+                                errorText = "Kh\u00f4ng ch\u1ee5p \u0111\u01b0\u1ee3c \u1ea3nh. H\u00e3y th\u1eed l\u1ea1i ho\u1eb7c ch\u1ecdn t\u1eeb th\u01b0 vi\u1ec7n."
                             } finally {
                                 isProcessing = false
                             }
                         }
                     },
                     enabled = hasCameraPermission && !isProcessing,
-                    modifier = Modifier.fillMaxWidth().height(46.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 58.dp)
+                        .fillMaxWidth()
+                        .height(52.dp),
                     shape = ScanShape,
                     colors = ButtonDefaults.buttonColors(containerColor = ScanGreenDark)
                 ) {
                     Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Chụp ảnh hóa đơn", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Ch\u1ee5p \u1ea3nh h\u00f3a \u0111\u01a1n", fontWeight = FontWeight.Bold)
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun ObjectCaptureCameraScreen(
@@ -449,29 +454,38 @@ fun ObjectCaptureCameraScreen(
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(modifier = Modifier.fillMaxSize(), color = ScanDark) {
-            Column(modifier = Modifier.fillMaxSize().padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Surface(modifier = Modifier.fillMaxSize(), color = ScanCanvas) {
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Hủy", tint = Color.White)
+                        Icon(Icons.Default.Close, contentDescription = "H\u1ee7y", tint = ScanGreenDark)
                     }
-                    Text("Chụp vật thể", color = Color.White, fontWeight = FontWeight.Black, fontSize = 20.sp)
+                    Text("Ch\u1ee5p v\u1eadt th\u1ec3", color = ScanGreenDark, fontWeight = FontWeight.Black, fontSize = 20.sp)
                 }
 
-                Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(24.dp)).background(Color.Black),
-                    contentAlignment = Alignment.Center
+                Card(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    if (hasCameraPermission) {
-                        CaptureOnlyCameraPreview(onImageCaptureReady = { imageCapture = it })
-                    } else {
-                        Text("Cần quyền camera", color = Color.White)
-                    }
-                    if (isProcessing) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = Color.White)
-                            Spacer(Modifier.height(10.dp))
-                            Text("Đang phân tích...", color = Color.White)
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(10.dp).clip(RoundedCornerShape(18.dp)).background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (hasCameraPermission) {
+                            CaptureOnlyCameraPreview(onImageCaptureReady = { imageCapture = it })
+                        } else {
+                            Text("C\u1ea7n quy\u1ec1n camera", color = Color.White)
+                        }
+                        if (isProcessing) {
+                            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.42f)), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(color = Color.White)
+                                    Spacer(Modifier.height(10.dp))
+                                    Text("\u0110ang ph\u00e2n t\u00edch...", color = Color.White)
+                                }
+                            }
                         }
                     }
                 }
@@ -482,11 +496,11 @@ fun ObjectCaptureCameraScreen(
                     OutlinedButton(
                         onClick = { galleryLauncher.launch("image/*") },
                         modifier = Modifier.weight(1f).height(48.dp),
-                        shape = CircleShape
+                        shape = ScanShape
                     ) {
                         Icon(Icons.Default.PhotoLibrary, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Thư viện")
+                        Text("Th\u01b0 vi\u1ec7n")
                     }
                     Button(
                         onClick = {
@@ -498,24 +512,25 @@ fun ObjectCaptureCameraScreen(
                                     val uri = capturePhoto(context, capture, "object_capture")
                                     processUri(uri)
                                 } catch (e: Exception) {
-                                    errorText = "Không chụp được ảnh."
+                                    errorText = "Kh\u00f4ng ch\u1ee5p \u0111\u01b0\u1ee3c \u1ea3nh."
                                     isProcessing = false
                                 }
                             }
                         },
                         enabled = hasCameraPermission && !isProcessing,
                         modifier = Modifier.weight(1f).height(48.dp),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(containerColor = ScanDanger)
+                        shape = ScanShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = ScanGreenDark)
                     ) {
                         Icon(Icons.Default.CameraAlt, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Chụp")
+                        Text("Ch\u1ee5p")
                     }
                 }
             }
         }
     }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -545,12 +560,11 @@ fun CaptureResultConfirmationScreen(
         mutableStateOf(
             result.productNote
                 ?: result.merchantName
-                ?: if (result.mode == CaptureMode.OBJECT_CAPTURE) "" else "Giao dịch quét AI"
+                ?: if (result.mode == CaptureMode.OBJECT_CAPTURE) "" else "Giao d\u1ecbch qu\u00e9t AI"
         )
     }
-    var category by remember(result) { mutableStateOf(result.categoryName ?: "Khác") }
-    var account by remember(accounts) { mutableStateOf(accounts.firstOrNull()?.name ?: "Tiền mặt") }
-    var note by remember(result) { mutableStateOf(result.rawOcrText.orEmpty()) }
+    var category by remember(result) { mutableStateOf(result.categoryName ?: "Kh\u00e1c") }
+    var account by remember(accounts) { mutableStateOf(accounts.firstOrNull()?.name ?: "Ti\u1ec1n m\u1eb7t") }
     var date by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var inlineError by remember { mutableStateOf<String?>(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
@@ -559,7 +573,7 @@ fun CaptureResultConfirmationScreen(
 
     val currentCategories = remember(categories, txTypeValue, category) {
         val values = categories.filter { it.type == txTypeValue }.map { it.name }
-        (listOf(category) + values + "Khác").distinct().filter { it.isNotBlank() }
+        (listOf(category) + values + "Kh\u00e1c").distinct().filter { it.isNotBlank() }
     }
 
     LaunchedEffect(result.sourceImageUri) {
@@ -567,10 +581,10 @@ fun CaptureResultConfirmationScreen(
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(modifier = Modifier.fillMaxSize(), color = ScanDark) {
+        Surface(modifier = Modifier.fillMaxSize(), color = ScanCanvas) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 item {
@@ -579,92 +593,95 @@ fun CaptureResultConfirmationScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        TextButton(onClick = onDismiss) { Text("Hủy", color = Color.White.copy(alpha = 0.8f)) }
-                        Text("Xác nhận giao dịch", color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "H\u1ee7y", tint = ScanGreenDark)
+                        }
+                        Text("Duy\u1ec7t giao d\u1ecbch", color = ScanGreenDark, fontWeight = FontWeight.Black, fontSize = 20.sp)
                         IconButton(onClick = onRetry) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Chụp lại", tint = Color.White.copy(alpha = 0.8f))
+                            Icon(Icons.Default.Refresh, contentDescription = "Qu\u00e9t l\u1ea1i", tint = ScanGreenDark)
                         }
-                    }
-                }
-
-                item {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().aspectRatio(1.1f).clip(RoundedCornerShape(28.dp)).background(Color(0xFF202226)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val bitmap = previewBitmap
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White.copy(alpha = 0.35f), modifier = Modifier.size(72.dp))
-                        }
-
-                        Surface(
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp).fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color(0xBB5B373A),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                val signedPrefix = if (txTypeValue == "EXPENSE") "-" else "+"
-                                val amountValue = parseVndInput(amountText)
-                                Text(
-                                    text = if (amountValue > 0.0) "$signedPrefix ${formatMoney(amountValue, result.currency, language)}" else "Cần nhập số tiền",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 28.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = title.ifBlank { "Chưa có ghi chú" },
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        AssistChipLike(icon = Icons.Default.AutoAwesome, label = if (result.confidence >= 0.75f) "Tự động nhận diện" else "Cần kiểm tra lại")
-                        AssistChipLike(icon = Icons.Default.Restaurant, label = category)
-                        AssistChipLike(icon = Icons.Default.AccountBalanceWallet, label = account)
                     }
                 }
 
                 item {
                     Card(
-                        shape = ScanShape,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                        modifier = Modifier.fillMaxWidth()
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(92.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color(0xFFE9EEE8)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val bitmap = previewBitmap
+                                if (bitmap != null) {
+                                    Image(
+                                        bitmap = bitmap.asImageBitmap(),
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Icon(Icons.Default.CameraAlt, contentDescription = null, tint = ScanGreen, modifier = Modifier.size(38.dp))
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = if (result.confidence >= 0.75f) "AI \u0111\u00e3 \u0111i\u1ec1n nh\u00e1p" else "C\u1ea7n ki\u1ec3m tra l\u1ea1i",
+                                    color = if (result.confidence >= 0.75f) ScanGreen else Color(0xFFE65100),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                                OutlinedTextField(
+                                    value = amountText,
+                                    onValueChange = { amountText = formatVndInput(it); inlineError = null },
+                                    label = { Text("S\u1ed1 ti\u1ec1n") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    leadingIcon = { Icon(Icons.Default.ShoppingCart, contentDescription = null) }
+                                )
+                                FilledTonalButton(
+                                    onClick = { date = System.currentTimeMillis() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = ScanShape
+                                ) {
+                                    Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(17.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Ng\u00e0y ${formatDate(date)}", maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             if (result.confidence < 0.75f || result.amount == null) {
-                                WarningStrip("AI chưa đủ chắc về số tiền. Hãy kiểm tra trước khi lưu.")
+                                WarningStrip("AI ch\u01b0a \u0111\u1ee7 ch\u1eafc v\u1ec1 s\u1ed1 ti\u1ec1n. H\u00e3y ki\u1ec3m tra tr\u01b0\u1edbc khi l\u01b0u.")
                             }
 
                             OutlinedTextField(
-                                value = amountText,
-                                onValueChange = { amountText = formatVndInput(it); inlineError = null },
-                                label = { Text("Số tiền") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth(),
-                                leadingIcon = { Icon(Icons.Default.ShoppingCart, contentDescription = null) }
-                            )
-                            OutlinedTextField(
                                 value = title,
                                 onValueChange = { title = it; inlineError = null },
-                                label = { Text("Ghi chú / sản phẩm") },
+                                label = { Text("S\u1ea3n ph\u1ea9m") },
                                 modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
                                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) }
                             )
 
@@ -673,7 +690,7 @@ fun CaptureResultConfirmationScreen(
                                     value = category,
                                     onValueChange = {},
                                     readOnly = true,
-                                    label = { Text("Danh mục") },
+                                    label = { Text("Danh m\u1ee5c") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
                                     modifier = Modifier.menuAnchor().fillMaxWidth()
                                 )
@@ -689,7 +706,7 @@ fun CaptureResultConfirmationScreen(
                                     value = account,
                                     onValueChange = {},
                                     readOnly = true,
-                                    label = { Text("Ví") },
+                                    label = { Text("T\u00e0i kho\u1ea3n") },
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(accountExpanded) },
                                     modifier = Modifier.menuAnchor().fillMaxWidth()
                                 )
@@ -700,20 +717,6 @@ fun CaptureResultConfirmationScreen(
                                 }
                             }
 
-                            FilledTonalButton(onClick = { date = System.currentTimeMillis() }, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Hôm nay - ${formatDate(date)}")
-                            }
-
-                            OutlinedTextField(
-                                value = note,
-                                onValueChange = { note = it },
-                                label = { Text("Ghi chú chi tiết / raw OCR") },
-                                modifier = Modifier.fillMaxWidth().height(118.dp),
-                                maxLines = 5
-                            )
-
                             result.rawOcrText?.takeIf { it.isNotBlank() }?.let { raw ->
                                 RawOcrPreview(rawText = raw)
                             }
@@ -722,28 +725,28 @@ fun CaptureResultConfirmationScreen(
 
                             HorizontalDivider()
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                                OutlinedButton(onClick = onRetry, modifier = Modifier.weight(1f).height(48.dp), shape = CircleShape) {
+                                OutlinedButton(onClick = onRetry, modifier = Modifier.weight(1f).height(48.dp), shape = ScanShape) {
                                     Icon(Icons.Default.CameraAlt, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Chụp lại")
+                                    Text("Qu\u00e9t l\u1ea1i")
                                 }
                                 Button(
                                     onClick = {
                                         val amount = parseVndInput(amountText)
                                         when {
-                                            amount <= 0.0 -> inlineError = "Vui lòng nhập số tiền chính xác."
-                                            title.isBlank() -> inlineError = "Vui lòng nhập ghi chú/sản phẩm."
-                                            account.isBlank() -> inlineError = "Vui lòng chọn ví."
-                                            else -> onConfirm(title.trim(), amount, txTypeValue, category, account, date, note, result.sourceImageUri)
+                                            amount <= 0.0 -> inlineError = "Vui l\u00f2ng nh\u1eadp s\u1ed1 ti\u1ec1n ch\u00ednh x\u00e1c."
+                                            title.isBlank() -> inlineError = "Vui l\u00f2ng nh\u1eadp s\u1ea3n ph\u1ea9m."
+                                            account.isBlank() -> inlineError = "Vui l\u00f2ng ch\u1ecdn t\u00e0i kho\u1ea3n."
+                                            else -> onConfirm(title.trim(), amount, txTypeValue, category, account, date, result.rawOcrText.orEmpty(), result.sourceImageUri)
                                         }
                                     },
                                     modifier = Modifier.weight(1f).height(48.dp),
-                                    shape = CircleShape,
-                                    colors = ButtonDefaults.buttonColors(containerColor = ScanDanger)
+                                    shape = ScanShape,
+                                    colors = ButtonDefaults.buttonColors(containerColor = ScanGreenDark)
                                 ) {
                                     Icon(Icons.Default.Check, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text("Xác nhận")
+                                    Text("L\u01b0u")
                                 }
                             }
                         }

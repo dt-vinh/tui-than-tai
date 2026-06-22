@@ -1823,9 +1823,9 @@ fun AddTransactionDialog(
 
     var title by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
-    var categorySelection by remember { mutableStateOf("Khác") }
-    var accountSelection by remember { mutableStateOf("Tiền mặt") }
-    var note by remember { mutableStateOf("") }
+    var categorySelection by remember { mutableStateOf("Kh\u00e1c") }
+    var accountSelection by remember { mutableStateOf("Ti\u1ec1n m\u1eb7t") }
+    var date by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var inlineError by remember { mutableStateOf<String?>(null) }
     var expCatDropdown by remember { mutableStateOf(false) }
     var expAccDropdown by remember { mutableStateOf(false) }
@@ -1844,36 +1844,40 @@ fun AddTransactionDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (type == "INCOME") Localization.getString("add_income", language) else Localization.getString("add_expense", language)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (hasNoAccounts) {
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            if (language == AppLanguage.VIETNAMESE) "Bạn cần thêm ít nhất một tài khoản tại mục 'Quản lý Tài khoản' (bên trong tab Công cụ) trước khi bắt đầu ghi chép chi tiêu!"
-                            else "You need to add at least one account in 'Account Management' (inside Tools tab) before recording any transactions!",
+                            if (language == AppLanguage.VIETNAMESE) "B\u1ea1n c\u1ea7n th\u00eam \u00edt nh\u1ea5t m\u1ed9t t\u00e0i kho\u1ea3n trong tab C\u00f4ng c\u1ee5 tr\u01b0\u1edbc khi ghi giao d\u1ecbch."
+                            else "Add at least one account in Tools before recording transactions.",
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.padding(16.dp), fontSize = 14.sp, fontWeight = FontWeight.Medium
                         )
                     }
                 } else {
-                    OutlinedTextField(value = amount, onValueChange = { amount = formatVndInput(it) }, label = { Text(Localization.getString("amount", language)) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = title,
-                            onValueChange = { title = it; inlineError = null },
-                            label = { Text(Localization.getString("title", language)) },
-                            modifier = Modifier.weight(1f),
-                            isError = inlineError != null
-                        )
-                        IconButton(
-                            onClick = { showObjectCapture = true },
-                            modifier = Modifier.size(52.dp).clip(AppShape).background(BrandGreenDark)
-                        ) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = "Chụp vật thể", tint = Color.White)
-                        }
+                    OutlinedTextField(
+                        value = amount,
+                        onValueChange = { amount = formatVndInput(it); inlineError = null },
+                        label = { Text(Localization.getString("amount", language)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it; inlineError = null },
+                        label = { Text(if (language == AppLanguage.VIETNAMESE) "S\u1ea3n ph\u1ea9m" else Localization.getString("title", language)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        isError = inlineError != null
+                    )
+                    FilledTonalButton(onClick = { date = System.currentTimeMillis() }, modifier = Modifier.fillMaxWidth(), shape = AppShape) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (language == AppLanguage.VIETNAMESE) "Ng\u00e0y ${formatDate(date)}" else formatDate(date))
                     }
-                    inlineError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
                     Box {
-                        OutlinedButton(onClick = { expCatDropdown = true }, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = { expCatDropdown = true }, modifier = Modifier.fillMaxWidth(), shape = AppShape) {
                             Text("${Localization.getString("category", language)}: ${Localization.getString(categorySelection, language)}")
                         }
                         DropdownMenu(expanded = expCatDropdown, onDismissRequest = { expCatDropdown = false }) {
@@ -1883,7 +1887,7 @@ fun AddTransactionDialog(
                         }
                     }
                     Box {
-                        Button(onClick = { expAccDropdown = true }, modifier = Modifier.fillMaxWidth()) {
+                        Button(onClick = { expAccDropdown = true }, modifier = Modifier.fillMaxWidth(), shape = AppShape, colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)) {
                             Text("${Localization.getString("account", language)}: ${Localization.getString(accountSelection, language)}")
                         }
                         DropdownMenu(expanded = expAccDropdown, onDismissRequest = { expAccDropdown = false }) {
@@ -1892,7 +1896,12 @@ fun AddTransactionDialog(
                             }
                         }
                     }
-                    OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text(Localization.getString("note", language)) }, modifier = Modifier.fillMaxWidth())
+                    OutlinedButton(onClick = { showObjectCapture = true }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = AppShape) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (language == AppLanguage.VIETNAMESE) "Qu\u00e9t b\u1eb1ng AI" else "Scan with AI")
+                    }
+                    inlineError?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
                 }
             }
         },
@@ -1900,9 +1909,15 @@ fun AddTransactionDialog(
             if (!hasNoAccounts) {
                 Button(onClick = {
                     val numAmount = parseVndInput(amount)
-                    if (title.isBlank()) { inlineError = Localization.getString(if (type == "INCOME") "input_title_income_error" else "input_title_error", language); return@Button }
-                    if (numAmount > 0.0) { viewModel.addTransaction(title, numAmount, type, categorySelection, accountSelection, System.currentTimeMillis(), note); onDismiss() }
-                }) { Text(Localization.getString("save", language)) }
+                    when {
+                        title.isBlank() -> inlineError = Localization.getString(if (type == "INCOME") "input_title_income_error" else "input_title_error", language)
+                        numAmount <= 0.0 -> inlineError = if (language == AppLanguage.VIETNAMESE) "Vui l\u00f2ng nh\u1eadp s\u1ed1 ti\u1ec1n ch\u00ednh x\u00e1c." else "Enter a valid amount."
+                        else -> {
+                            viewModel.addTransaction(title, numAmount, type, categorySelection, accountSelection, date, "")
+                            onDismiss()
+                        }
+                    }
+                }, shape = AppShape, colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark)) { Text(Localization.getString("save", language)) }
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(Localization.getString("cancel", language)) } }
@@ -1916,14 +1931,11 @@ fun AddTransactionDialog(
                 result.amount?.let { amount = formatVndInput(it.toString()) }
                 result.productNote?.takeIf { it.isNotBlank() }?.let { title = it }
                 result.categoryName?.takeIf { candidate -> subsetCats.any { it.name == candidate } }?.let { categorySelection = it }
-                result.rawOcrText?.takeIf { it.isNotBlank() }?.let { note = it }
                 showObjectCapture = false
             }
         )
     }
 }
-
-// ─── Thermal Receipt Card ─────────────────────────────────────────────────────
 
 @Composable
 fun ThermalReceiptCard(ocrResult: OcrResult, language: AppLanguage) {
