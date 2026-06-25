@@ -24,7 +24,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.stevejobvnAIStudio.tuithantai"
+        applicationId = "com.stevejobvnAIstudio.tuithantai"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
