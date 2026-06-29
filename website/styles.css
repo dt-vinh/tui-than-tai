@@ -21,11 +21,15 @@
 
 html {
   scroll-behavior: smooth;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   color: var(--text);
+  max-width: 100%;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 18% 30%, rgba(0, 184, 255, 0.24), transparent 28rem),
     radial-gradient(circle at 82% 18%, rgba(35, 229, 255, 0.16), transparent 25rem),
@@ -89,16 +93,21 @@ nav a:hover {
 }
 
 main {
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   align-items: center;
   gap: clamp(28px, 5vw, 70px);
   min-height: calc(100vh - 76px);
   padding: clamp(40px, 7vw, 90px) clamp(20px, 5vw, 72px);
+}
+
+.hero-copy,
+.workflow-copy {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -194,6 +203,9 @@ p {
 
 .hero-visual {
   position: relative;
+  width: 100%;
+  min-width: 0;
+  justify-self: center;
 }
 
 .hero-visual::before {
@@ -205,9 +217,21 @@ p {
   filter: blur(70px);
 }
 
+.hero-visual picture {
+  position: relative;
+  width: min(100%, 760px);
+  max-width: 100%;
+  display: block;
+  margin-inline: auto;
+}
+
 .hero-visual img {
   position: relative;
   width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1024 / 500;
+  object-fit: contain;
   display: block;
   border-radius: 18px;
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.45);
@@ -256,7 +280,10 @@ p {
 
 .phone-stack {
   position: relative;
+  width: 100%;
+  max-width: 100%;
   min-height: 590px;
+  overflow: hidden;
 }
 
 .phone {
@@ -394,6 +421,7 @@ p {
 
   .hero-visual {
     order: -1;
+    width: min(100%, 760px);
   }
 
   .feature-grid {
@@ -405,7 +433,7 @@ p {
   }
 
   .phone {
-    width: 210px;
+    width: min(30vw, 210px);
   }
 
   .phone-b {
@@ -434,12 +462,63 @@ p {
     padding-inline: 16px;
   }
 
+  .hero {
+    width: 100%;
+    max-width: 100vw;
+    justify-items: start;
+  }
+
+  .hero-copy,
+  .hero-visual,
+  .hero-actions,
+  .lead,
+  h1 {
+    width: min(100%, 328px);
+    max-width: 328px;
+  }
+
+  h1 {
+    font-size: clamp(38px, 11vw, 48px);
+    overflow-wrap: anywhere;
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .primary-button,
+  .secondary-button {
+    width: 100%;
+  }
+
+  .hero-visual {
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  .hero-visual picture {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .hero-visual::before {
+    inset: 18% 8%;
+    filter: blur(42px);
+  }
+
+  .hero-visual img {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 12px;
+  }
+
   .phone-stack {
-    min-height: 410px;
+    min-height: min(410px, 108vw);
   }
 
   .phone {
-    width: 170px;
+    width: min(40vw, 170px);
     border-width: 5px;
   }
 
@@ -452,7 +531,7 @@ p {
   }
 
   .phone-c {
-    left: 52%;
+    left: 54%;
   }
 
   .metric-panel div {
