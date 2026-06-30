@@ -78,7 +78,10 @@ object TotalResolver {
         "balance", "subtotal", "unit price", "price each",
         // Common
         "tip", "gratuity", "service charge",
-        "so dien thoai", "dien thoai", "di dong", "hotline", "phone", "tel"
+        "so dien thoai", "dien thoai", "di dong", "hotline", "phone", "tel",
+        // Shipping labels / measurement values — never transaction amounts
+        "khoi luong", "trong luong", "can nang", "kich thuoc", "tong sl",
+        "sl san pham", "maximum weight", "weight", "gram", "grams"
     )
 
     // ── Universal currency symbols / codes ────────────────────────────────────

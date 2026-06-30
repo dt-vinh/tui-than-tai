@@ -17,7 +17,10 @@ object AmountExtractor {
         "khach dua", "tien thua", "tra lai", "giam gia", "discount", "vat",
         "thue", "mst", "ma so thue", "so hoa don", "so hd", "ma hd", "sdt",
         "dien thoai", "phone", "gio vao", "gio in", "gio ra", "table",
-        "qty", "sl/tl", "so luong"
+        "qty", "sl/tl", "so luong", "tong sl", "sl san pham", "ma don",
+        "ma don hang", "order id", "barcode", "qr", "khoi luong",
+        "trong luong", "can nang", "kich thuoc", "chieu dai", "chieu rong",
+        "chieu cao", "toi da", "maximum weight", "weight", "gram", "grams"
     )
 
     private val amountPattern = Regex(
@@ -95,6 +98,7 @@ object AmountExtractor {
     private fun looksLikeNoise(line: String, rawAmount: String, amount: Long, normLine: String): Boolean {
         if (amount < 1_000L) return true
         if (excludeKeywords.any { normLine.contains(it) }) return true
+        if (hasMeasurementUnitAfterAmount(line, rawAmount)) return true
         if (isTableOrSeatLine(normLine)) return true
         if (Regex("""\d{1,2}:\d{2}""").containsMatchIn(line)) return true
         if (Regex("""\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}""").containsMatchIn(line)) return true
@@ -107,6 +111,16 @@ object AmountExtractor {
 
     private fun isTableOrSeatLine(normLine: String): Boolean =
         Regex("""(^|\s)(tai\s+ban|so\s+ban|ban\s*[:#-]|\bban\b)""").containsMatchIn(normLine)
+
+    private fun hasMeasurementUnitAfterAmount(line: String, rawAmount: String): Boolean {
+        val amount = rawAmount.trim()
+        if (amount.isBlank()) return false
+        val escaped = Regex.escape(amount)
+        return Regex(
+            """$escaped\s*(g|gr|gram|grams|kg|kgs|ml|l|lit|liter|litre|cm|mm|m)\b""",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(line)
+    }
 
     private fun ScoredCandidate.score(largest: Long): ScoredCandidate {
         var total = 0

@@ -22,7 +22,7 @@ object CategoryClassifier {
                 "bia", "ruou", "com", "pho", "bun", "banh mi", "banh", "nuoc uong",
                 "nuoc ngot", "tra sua", "cafe", "ca phe", "do an", "do uong",
                 "do nhac", "kho ca", "trung", "kem", "mut", "snack", "mon an",
-                "thit", "ca", "rau", "pho mai", "mi", "bap", "ga"
+                "thit", "ca", "rau", "pho mai", "mi", "bap", "thit ga", "ga ran"
             ),
             "food"
         ),
@@ -47,7 +47,9 @@ object CategoryClassifier {
             listOf(
                 "sieu thi", "tien ich", "quan ao", "giay dep", "tui xach",
                 "dien tu", "dien thoai", "laptop", "may tinh", "do gia dung",
-                "sach", "van phong pham", "do choi"
+                "sach", "van phong pham", "do choi", "iphone", "ipad",
+                "macbook", "apple", "samsung", "oppo", "xiaomi", "shopee",
+                "lazada", "tiki", "smartphone", "phu kien"
             ),
             "shopping"
         ),

@@ -99,7 +99,10 @@ class OcrAnalyzer {
         "account number", "card number",
         // Time / status lines
         "thoi gian", "trang thai", "ngan hang", "nguoi nhan", "nguoi chuyen",
-        "noi dung", "tin nhan", "gio vao", "gio ra", "ngay:"
+        "noi dung", "tin nhan", "gio vao", "gio ra", "ngay:",
+        // Shipping label / measurement fields
+        "khoi luong", "trong luong", "can nang", "kich thuoc", "tong sl",
+        "sl san pham", "maximum weight", "weight", "gram", "grams"
     )
 
     private fun buildCandidates(

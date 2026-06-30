@@ -10,8 +10,9 @@ object CategoryResolver {
         Rule(
             categoryName = "Ăn uống",
             tokens = listOf(
-                "sui cao", "com", "mi", "tra", "cafe", "ca phe", "restaurant",
-                "quan", "bun", "pho", "lau", "nha hang", "food", "coffee", "tea"
+                "sui cao", "com", "mi", "tra sua", "tra dao", "tra chanh",
+                "tra thao moc", "cafe", "ca phe", "restaurant", "bun", "pho",
+                "lau", "nha hang", "food", "coffee", "tea"
             )
         ),
         Rule(
@@ -29,7 +30,10 @@ object CategoryResolver {
             categoryName = "Mua sắm",
             tokens = listOf(
                 "dong ho", "watch", "quan ao", "clothes", "shoes", "giay",
-                "shopping", "sach", "book", "fashion accessory"
+                "shopping", "sach", "book", "fashion accessory", "shopee",
+                "lazada", "tiki", "iphone", "ipad", "macbook", "apple",
+                "samsung", "oppo", "xiaomi", "dien thoai", "smartphone",
+                "laptop", "may tinh", "dien tu", "phu kien"
             )
         ),
         Rule(
@@ -42,19 +46,23 @@ object CategoryResolver {
         val ocr = AmountExtractor.normalize(rawOcrText.orEmpty())
         val objectText = AmountExtractor.normalize(objectHint.orEmpty())
 
-        val ocrHit = bestMatch(ocr)
-        if (ocrHit != null) return ocrHit
-
-        return bestMatch(objectText) ?: "Khác"
+        return bestMatch(
+            listOf(
+                WeightedText(objectText, weight = 3),
+                WeightedText(ocr, weight = 1)
+            )
+        ) ?: "Khác"
     }
 
-    private fun bestMatch(text: String): String? {
-        if (text.isBlank()) return null
+    private fun bestMatch(parts: List<WeightedText>): String? {
+        if (parts.all { it.text.isBlank() }) return null
 
         var bestCategory: String? = null
         var bestScore = 0
         for (rule in rules) {
-            val score = rule.tokens.count { token -> text.contains(token) }
+            val score = parts.sumOf { part ->
+                rule.tokens.count { token -> containsToken(part.text, token) } * part.weight
+            }
             if (score > bestScore) {
                 bestScore = score
                 bestCategory = rule.categoryName
@@ -62,4 +70,13 @@ object CategoryResolver {
         }
         return bestCategory.takeIf { bestScore > 0 }
     }
+
+    private fun containsToken(text: String, token: String): Boolean {
+        if (text.isBlank()) return false
+        if (token.contains(" ")) return text.contains(token)
+        return Regex("""(^|[^a-z0-9])${Regex.escape(token)}([^a-z0-9]|$)""")
+            .containsMatchIn(text)
+    }
+
+    private data class WeightedText(val text: String, val weight: Int)
 }
