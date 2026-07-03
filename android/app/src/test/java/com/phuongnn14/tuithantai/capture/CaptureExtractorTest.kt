@@ -15,6 +15,39 @@ class CaptureExtractorTest {
     }
 
     @Test
+    fun splitThanhToanKeywordAndAmountStillAutoFills() {
+        val text = """
+            Tiền hàng (7)
+            415,000
+            THANH TOÁN
+            415,000đ
+        """.trimIndent()
+
+        val result = MoneyPresenceDetector.detect(text)
+
+        assertEquals(415_000L, result?.amount)
+        assertTrue((result?.confidence ?: 0f) >= 0.75f)
+    }
+
+    @Test
+    fun invoiceTitleThanhToanDoesNotBoostInvoiceNumber() {
+        val text = """
+            SỦI CẢO ĐỆ NHẤT ĐÔNG BẮC
+            HÓA ĐƠN THANH TOÁN
+            Số: 100097932
+            Tiền hàng (7)
+            415,000
+            THANH TOÁN
+            415,000đ
+        """.trimIndent()
+
+        val result = MoneyPresenceDetector.detect(text)
+
+        assertEquals(415_000L, result?.amount)
+        assertTrue(result?.productNote?.contains("Sủi Cảo", ignoreCase = true) == true)
+    }
+
+    @Test
     fun cashGivenAndChangeAreIgnored() {
         val text = """
             Tiền hàng 415,000
@@ -76,6 +109,21 @@ class CaptureExtractorTest {
             Tiền thu Người nhận:
             0 VND
             Khối lượng tối đa: 30,000 g
+        """.trimIndent()
+
+        val result = AmountExtractor.extract(text)
+
+        assertNull(result)
+    }
+
+    @Test
+    fun splitWeightLineIsNotMoneyAmount() {
+        val text = """
+            Tiền thu Người nhận:
+            0 VND
+            Khối lượng tối đa:
+            30,000
+            g
         """.trimIndent()
 
         val result = AmountExtractor.extract(text)
