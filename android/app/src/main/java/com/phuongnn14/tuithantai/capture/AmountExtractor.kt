@@ -1,8 +1,12 @@
 package com.phuongnn14.tuithantai.capture
 
+import android.util.Log
 import java.text.Normalizer
 
 object AmountExtractor {
+    private const val TAG = "AmountExtractor"
+    private const val MAX_CONFIDENT_AMOUNT_VND = 999_999_999_999L
+
     private val priorityKeywords = listOf(
         "tong thanh toan", "thanh toan", "tong cong", "phai tra", "thanh tien",
         "tong tien", "total", "grand total", "amount due", "gia"
@@ -43,13 +47,16 @@ object AmountExtractor {
                 val amount = parseVndAmount(match.value) ?: return@forEach
                 if (amount <= 0L) return@forEach
                 if (looksLikeNoise(lines, index, match.value, amount, normLine, normContext)) return@forEach
+                val amountNeedsReview = amount > MAX_CONFIDENT_AMOUNT_VND
+                if (amountNeedsReview) logAmountOverCeiling(amount, line)
                 candidates += ScoredCandidate(
                     amount = amount,
                     sourceLine = line,
                     lineIndex = index,
                     totalLines = lines.size,
                     normLine = normLine,
-                    normContext = normContext
+                    normContext = normContext,
+                    needsReview = amountNeedsReview
                 )
             }
         }
@@ -68,7 +75,8 @@ object AmountExtractor {
             amount = best.amount,
             sourceLine = best.sourceLine,
             confidence = confidence,
-            reason = best.reason
+            reason = best.reason,
+            needsReview = best.needsReview
         )
     }
 
@@ -90,7 +98,7 @@ object AmountExtractor {
 
         val parsed = numeric.toLongOrNull() ?: return null
         val amount = if (isK) parsed * 1_000L else parsed
-        return amount.takeIf { it in 0..999_999_999L }
+        return amount.takeIf { it >= 0L }
     }
 
     private fun segmentAfterPriorityKeyword(line: String, normLine: String): String? {
@@ -154,8 +162,20 @@ object AmountExtractor {
         if (Regex("""\d+\s*%""").containsMatchIn(line)) return true
 
         val digits = rawAmount.filter { it.isDigit() }
-        if (digits.length >= 10 && !hasTrustedPayableKeyword(normContext)) return true
+        if (digits.length >= 10 && !hasTrustedPayableKeyword(normContext) && !hasCurrencySignal(rawAmount)) return true
         return false
+    }
+
+    private fun hasCurrencySignal(rawAmount: String): Boolean =
+        Regex("""(?i)(VND|VNÄ|vnÄ‘|Ä‘|d)\s*$""").containsMatchIn(rawAmount.trim())
+
+    private fun logAmountOverCeiling(amount: Long, sourceLine: String) {
+        runCatching {
+            Log.w(
+                TAG,
+                "Amount exceeds confident ceiling: amount=$amount ceiling=$MAX_CONFIDENT_AMOUNT_VND line=$sourceLine"
+            )
+        }
     }
 
     private fun isTableOrSeatLine(normLine: String): Boolean =
@@ -233,6 +253,7 @@ object AmountExtractor {
         val normLine: String,
         val normContext: String,
         val score: Int = 0,
-        val reason: String = ""
+        val reason: String = "",
+        val needsReview: Boolean = false
     )
 }

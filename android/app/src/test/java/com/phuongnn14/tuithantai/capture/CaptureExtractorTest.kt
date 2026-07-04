@@ -1,6 +1,7 @@
 package com.phuongnn14.tuithantai.capture
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -48,6 +49,22 @@ class CaptureExtractorTest {
         val result = AmountExtractor.extract("Giờ vào: 12:24 12/06/2026")
 
         assertNull(result)
+    }
+
+    @Test
+    fun billionAmountIsNotDropped() {
+        val result = AmountExtractor.extract("Tong tien: 5.000.000.000 VND")
+
+        assertEquals(5_000_000_000L, result?.amount)
+        assertFalse(result?.needsReview ?: true)
+    }
+
+    @Test
+    fun amountAboveConfidentCeilingIsReturnedForReview() {
+        val result = AmountExtractor.extract("Tong tien: 1.000.000.000.000 VND")
+
+        assertEquals(1_000_000_000_000L, result?.amount)
+        assertTrue(result?.needsReview == true)
     }
 
     @Test
