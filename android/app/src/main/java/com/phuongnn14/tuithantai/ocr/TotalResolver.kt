@@ -132,7 +132,11 @@ object TotalResolver {
             val excluded    = EXCLUDE_KEYWORDS.any { n.contains(it) }
             val hasCurrency = CURRENCY_RE.containsMatchIn(c.label)
             // Lines toward the bottom of the document score higher (receipts: total is last)
-            val positionScore = (c.lineIndex.toDouble() / c.totalLines.coerceAtLeast(1)) * 3.0
+            val positionScore = if (c.totalLines <= 1) {
+                3.0
+            } else {
+                (c.lineIndex.toDouble() / c.totalLines) * 3.0
+            }
             val freqPenalty   = if ((amountFreq[c.amount] ?: 1) > 1) 2 else 0
             Scored(c, keywordScore, hasCurrency, excluded, positionScore, freqPenalty)
         }

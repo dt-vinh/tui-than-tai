@@ -55,6 +55,24 @@ class TotalResolverTest {
         assertNull(TotalResolver.resolve(emptyList()))
     }
 
+    @Test fun `single line receipt gets max positional confidence support`() {
+        val result = TotalResolver.resolveWithConfidence(
+            listOf(TotalResolver.Candidate("TONG CONG: 50.000 VND", 50_000.0, lineIndex = 0, totalLines = 1))
+        )
+
+        assertEquals(50_000.0, result.amount!!, 0.0)
+        assertEquals(0.95, result.confidence, 0.0)
+    }
+
+    @Test fun `single line total beats weaker lower positioned candidate`() {
+        val candidates = listOf(
+            TotalResolver.Candidate("TONG TIEN 50.000", 50_000.0, lineIndex = 0, totalLines = 1),
+            TotalResolver.Candidate("bayar 45.000", 45_000.0, lineIndex = 9, totalLines = 10)
+        )
+
+        assertEquals(50_000.0, TotalResolver.resolve(candidates)!!, 0.0)
+    }
+
     @Test fun `falls back to largest non-excluded when no priority label`() {
         val candidates = listOf(
             c("Item A", 30_000.0),
