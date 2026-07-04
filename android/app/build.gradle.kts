@@ -1,3 +1,4 @@
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -12,6 +13,27 @@ val localProps = Properties().also { props ->
     if (f.exists()) f.inputStream().use { props.load(it) }
 }
 
+fun Properties.loadRawKeyValueFile(file: File) {
+    file.forEachLine { rawLine ->
+        val line = rawLine.trim()
+        if (line.isBlank() || line.startsWith("#")) return@forEachLine
+        val separator = line.indexOf('=')
+        if (separator <= 0) return@forEachLine
+        val key = line.substring(0, separator).trim().removePrefix("\uFEFF")
+        setProperty(key, line.substring(separator + 1).trim())
+    }
+}
+
+val uploadSigningProps = Properties().also { props ->
+    val configuredPath = System.getenv("UPLOAD_KEYSTORE_PROPERTIES")
+    val candidates = listOfNotNull(
+        configuredPath?.takeIf { it.isNotBlank() }?.let { file(it) },
+        rootProject.file("upload-keystore.properties"),
+        project.file("../upload-keystore.properties")
+    )
+    candidates.firstOrNull { it.exists() }?.let { props.loadRawKeyValueFile(it) }
+}
+
 fun String.asBuildConfigString(): String =
     replace("\\", "\\\\").replace("\"", "\\\"")
 
@@ -19,22 +41,50 @@ val geminiApiKeys: String =
     localProps.getProperty("gemini.api.keys")
         ?: localProps.getProperty("gemini.api.key", "")
 
+fun signingValue(name: String, envName: String): String? =
+    uploadSigningProps.getProperty(name)
+        ?: localProps.getProperty("upload.$name")
+        ?: localProps.getProperty(name)
+        ?: System.getenv(envName)
+
+val uploadStoreFile = signingValue("storeFile", "UPLOAD_STORE_FILE")
+val uploadStorePassword = signingValue("storePassword", "UPLOAD_STORE_PASSWORD")
+val uploadKeyAlias = signingValue("keyAlias", "UPLOAD_KEY_ALIAS")
+val uploadKeyPassword = signingValue("keyPassword", "UPLOAD_KEY_PASSWORD")
+val hasUploadSigning = listOf(
+    uploadStoreFile,
+    uploadStorePassword,
+    uploadKeyAlias,
+    uploadKeyPassword
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.phuongnn14.tuithantai"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.phuongnn14.tuithantai"
+        applicationId = "com.stevejobvnAIstudio.tuithantai"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 8
+        versionName = "0.8.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "DEFAULT_API_BASE_URL", "\"https://api.your-domain.com\"")
         buildConfigField(
             "String", "GEMINI_API_KEY",
             "\"${geminiApiKeys.asBuildConfigString()}\""
         )
+    }
+
+    signingConfigs {
+        if (hasUploadSigning) {
+            create("upload") {
+                storeFile = file(uploadStoreFile!!)
+                storePassword = uploadStorePassword
+                keyAlias = uploadKeyAlias
+                keyPassword = uploadKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -44,6 +94,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasUploadSigning) {
+                signingConfig = signingConfigs.getByName("upload")
+            }
         }
     }
 
