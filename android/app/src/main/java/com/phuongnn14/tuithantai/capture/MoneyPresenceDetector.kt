@@ -1,5 +1,7 @@
 package com.phuongnn14.tuithantai.capture
 
+import com.phuongnn14.tuithantai.ocr.OcrThresholds
+
 object MoneyPresenceDetector {
     fun detect(rawOcrText: String, sourceImageUri: String? = null): ExpenseCaptureResult? {
         val amountResult = AmountExtractor.extract(rawOcrText) ?: return null
@@ -18,7 +20,7 @@ object MoneyPresenceDetector {
             confidence = confidence,
             rawOcrText = rawOcrText,
             sourceImageUri = sourceImageUri,
-            needsReview = true
+            needsReview = confidence < OcrThresholds.AUTO_FILL
         )
     }
 

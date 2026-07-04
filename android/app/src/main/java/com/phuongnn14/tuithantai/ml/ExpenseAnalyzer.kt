@@ -14,6 +14,7 @@ import com.phuongnn14.tuithantai.ocr.DocumentType
 import com.phuongnn14.tuithantai.ocr.MoneyParser
 import com.phuongnn14.tuithantai.ocr.OcrAnalyzer
 import com.phuongnn14.tuithantai.ocr.OcrResult
+import com.phuongnn14.tuithantai.ocr.OcrThresholds
 import com.phuongnn14.tuithantai.ocr.engine.GeminiReceiptAnalyzer
 import com.phuongnn14.tuithantai.ocr.engine.OcrEngineSelector
 import java.text.Normalizer
@@ -43,15 +44,14 @@ data class ExpenseSuggestion(
  *   • Runs when Gemini is unavailable (no network / API error / blank key)
  *   • Language-agnostic: currency-symbol detection + positional scoring
  *     + frequency-penalty (unit prices repeat, total doesn't)
- *   • If resolver confidence >= 0.65 → return result
- *   • If confidence < 0.65 → return result with needsReview = true
+ *   • If resolver confidence >= OcrThresholds.LOCAL_FALLBACK → return result
+ *   • If confidence < OcrThresholds.LOCAL_FALLBACK → return result with needsReview = true
  */
 class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
 
     companion object {
         private const val TAG = "ExpenseAnalyzer"
         /** MLKit result below this confidence triggers needsReview */
-        private const val LOCAL_REVIEW_THRESHOLD = 0.65
         /** Max image side for Gemini — keeps token cost low */
         private const val GEMINI_MAX_SIDE = 768
     }
@@ -140,7 +140,8 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                 categoryId = mapCaptureCategoryId(captureCategory),
                 ocrText = engineResult.rawText,
                 labels = emptyList(),
-                needsReview = captureAmount.amount == 0L || captureAmount.confidence < LOCAL_REVIEW_THRESHOLD,
+                needsReview = captureAmount.amount == 0L ||
+                    captureAmount.confidence < OcrThresholds.LOCAL_FALLBACK,
                 reviewFields = if (captureAmount.amount == 0L) listOf("total_amount") else emptyList(),
                 ocrEngine = "${engineResult.engineName}-capture-parser",
                 ocrConfidence = captureAmount.confidence,
@@ -167,7 +168,8 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                 objectSuggestion.categoryId
             else -> result.categoryId
         }
-        val needsReview = result.needsUserReview || result.confidence < LOCAL_REVIEW_THRESHOLD
+        val needsReview = result.needsUserReview ||
+            result.confidence < OcrThresholds.LOCAL_FALLBACK.toDouble()
 
         return ExpenseSuggestion(
             title        = result.merchantName
