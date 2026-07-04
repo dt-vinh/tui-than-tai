@@ -69,4 +69,40 @@ class CaptureExtractorTest {
 
         assertEquals("Ăn uống", result)
     }
+
+    @Test
+    fun shopeeShippingLabelUsesCodZeroAndIgnoresWeight() {
+        val text = """
+            S Shopee
+            be
+            Hỏa Tốc Mã đơn hàng: 260629C13TP4BS
+            Nội dung hàng (Tổng SL sản phẩm: 1)
+            1. (NFC)Iphone 8 plus 64 GB,Iphone X mất face,SL: 1
+            Tiền thu Người nhận:
+            0 VND
+            Khối lượng tối đa: 30,000 g
+            Kiểm tra tên sản phẩm và đối chiếu Mã vận đơn trên ứng dụng Shopee trước khi nhận hàng
+        """.trimIndent()
+
+        val amount = AmountExtractor.extract(text)
+        val result = MoneyPresenceDetector.detect(text)
+
+        assertEquals(0L, amount?.amount)
+        assertEquals(0L, result?.amount)
+        assertTrue(result?.productNote?.contains("iPhone 8 Plus 64 GB") == true)
+        assertEquals("Mua sắm", result?.categoryName)
+    }
+
+    @Test
+    fun shopeeWeightWithoutCodIsNotMoneyAmount() {
+        val text = """
+            S Shopee
+            Nội dung hàng (Tổng SL sản phẩm: 1)
+            1. (NFC)Iphone 8 plus 64 GB,Iphone X mất face,SL: 1
+            Khối lượng tối đa: 30,000 g
+        """.trimIndent()
+
+        assertNull(AmountExtractor.extract(text))
+        assertEquals("Mua sắm", CategoryResolver.resolve(text, ProductNoteExtractor.extract(text)))
+    }
 }

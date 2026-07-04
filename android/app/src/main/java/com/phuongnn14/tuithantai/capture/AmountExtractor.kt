@@ -17,7 +17,10 @@ object AmountExtractor {
         "khach dua", "tien thua", "tra lai", "giam gia", "discount", "vat",
         "thue", "mst", "ma so thue", "so hoa don", "so hd", "ma hd", "sdt",
         "dien thoai", "phone", "gio vao", "gio in", "gio ra", "table",
-        "qty", "sl/tl", "so luong"
+        "qty", "sl/tl", "so luong", "tong sl", "sl san pham", "ma don",
+        "ma don hang", "order id", "barcode", "qr", "khoi luong",
+        "trong luong", "can nang", "kich thuoc", "chieu dai", "chieu rong",
+        "chieu cao", "toi da", "maximum weight", "weight", "gram", "grams"
     )
 
     private val amountPattern = Regex(
@@ -28,20 +31,25 @@ object AmountExtractor {
         val lines = rawText.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.toList()
         if (lines.isEmpty()) return null
 
+        explicitZeroCodAmount(lines)?.let { return it }
+
+        val normalizedLines = lines.map { normalize(it) }
         val candidates = mutableListOf<ScoredCandidate>()
         lines.forEachIndexed { index, line ->
-            val normLine = normalize(line)
+            val normLine = normalizedLines[index]
+            val normContext = buildNormContext(normalizedLines, index)
             val searchText = segmentAfterPriorityKeyword(line, normLine) ?: line
             amountPattern.findAll(searchText).forEach { match ->
                 val amount = parseVndAmount(match.value) ?: return@forEach
                 if (amount <= 0L) return@forEach
-                if (looksLikeNoise(line, match.value, amount, normLine)) return@forEach
+                if (looksLikeNoise(lines, index, match.value, amount, normLine, normContext)) return@forEach
                 candidates += ScoredCandidate(
                     amount = amount,
                     sourceLine = line,
                     lineIndex = index,
                     totalLines = lines.size,
-                    normLine = normLine
+                    normLine = normLine,
+                    normContext = normContext
                 )
             }
         }
@@ -82,7 +90,7 @@ object AmountExtractor {
 
         val parsed = numeric.toLongOrNull() ?: return null
         val amount = if (isK) parsed * 1_000L else parsed
-        return amount.takeIf { it in 1..999_999_999L }
+        return amount.takeIf { it in 0..999_999_999L }
     }
 
     private fun segmentAfterPriorityKeyword(line: String, normLine: String): String? {
@@ -92,26 +100,97 @@ object AmountExtractor {
         return line.drop(keywordEnd.coerceAtMost(line.length))
     }
 
-    private fun looksLikeNoise(line: String, rawAmount: String, amount: Long, normLine: String): Boolean {
+    private fun explicitZeroCodAmount(lines: List<String>): AmountExtractionResult? {
+        lines.forEachIndexed { index, line ->
+            val normLine = normalize(line)
+            val nextLine = lines.getOrNull(index + 1).orEmpty()
+            val sameLineHasZeroMoney = Regex("""(?i)(^|[^0-9])0\s*(vnd|vnđ|đ|d)([^a-z0-9]|$)""")
+                .containsMatchIn(line)
+            val nextLineHasZeroMoney = Regex("""(?i)^0\s*(vnd|vnđ|đ|d)?$""")
+                .containsMatchIn(nextLine.trim())
+            if (isCodAmountLine(normLine) && (sameLineHasZeroMoney || nextLineHasZeroMoney)) {
+                return AmountExtractionResult(
+                    amount = 0L,
+                    sourceLine = if (sameLineHasZeroMoney) line else "$line $nextLine",
+                    confidence = 0.86f,
+                    reason = "explicit zero COD amount"
+                )
+            }
+        }
+        return null
+    }
+
+    private fun isCodAmountLine(normLine: String): Boolean =
+        normLine.contains("tien thu nguoi nhan") ||
+            normLine.contains("tien thu ng nhan") ||
+            normLine.contains("tien thu") ||
+            normLine.contains("cod")
+
+    private fun buildNormContext(normalizedLines: List<String>, index: Int): String =
+        listOfNotNull(
+            normalizedLines.getOrNull(index - 1),
+            normalizedLines.getOrNull(index)
+        ).joinToString(" ")
+
+    private fun looksLikeNoise(
+        lines: List<String>,
+        index: Int,
+        rawAmount: String,
+        amount: Long,
+        normLine: String,
+        normContext: String
+    ): Boolean {
+        val line = lines[index]
         if (amount < 1_000L) return true
+        val previousNormLine = lines.getOrNull(index - 1)?.let { normalize(it) }.orEmpty()
+        val currentHasTrustedPayableKeyword = hasTrustedPayableKeyword(normLine)
         if (excludeKeywords.any { normLine.contains(it) }) return true
+        if (!currentHasTrustedPayableKeyword && excludeKeywords.any { previousNormLine.contains(it) }) return true
+        if (looksLikeInvoiceNumberLine(normLine)) return true
+        if (hasMeasurementUnitAroundAmount(lines, index, rawAmount)) return true
         if (isTableOrSeatLine(normLine)) return true
         if (Regex("""\d{1,2}:\d{2}""").containsMatchIn(line)) return true
         if (Regex("""\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}""").containsMatchIn(line)) return true
         if (Regex("""\d+\s*%""").containsMatchIn(line)) return true
 
         val digits = rawAmount.filter { it.isDigit() }
-        if (digits.length >= 10 && !priorityKeywords.any { normLine.contains(it) }) return true
+        if (digits.length >= 10 && !hasTrustedPayableKeyword(normContext)) return true
         return false
     }
 
     private fun isTableOrSeatLine(normLine: String): Boolean =
         Regex("""(^|\s)(tai\s+ban|so\s+ban|ban\s*[:#-]|\bban\b)""").containsMatchIn(normLine)
 
+    private fun looksLikeInvoiceNumberLine(normLine: String): Boolean =
+        Regex("""^(so|no|number|ma|id)\s*[:#-]""").containsMatchIn(normLine) &&
+            !normLine.contains("so tien") &&
+            !normLine.contains("amount")
+
+    private fun hasMeasurementUnitAroundAmount(lines: List<String>, index: Int, rawAmount: String): Boolean {
+        if (hasMeasurementUnitAfterAmount(lines[index], rawAmount)) return true
+        val nextLine = lines.getOrNull(index + 1)?.trim().orEmpty()
+        return nextLine.matches(Regex("""(?i)^(g|gr|gram|grams|kg|kgs|ml|l|lit|liter|litre|cm|mm|m)\b.*"""))
+    }
+
+    private fun hasMeasurementUnitAfterAmount(line: String, rawAmount: String): Boolean {
+        val amount = rawAmount.trim()
+        if (amount.isBlank()) return false
+        val escaped = Regex.escape(amount)
+        return Regex(
+            """$escaped\s*(g|gr|gram|grams|kg|kgs|ml|l|lit|liter|litre|cm|mm|m)\b""",
+            RegexOption.IGNORE_CASE
+        ).containsMatchIn(line)
+    }
+
+    private fun hasTrustedPayableKeyword(normText: String): Boolean =
+        strongKeywords.any { normText.contains(it) } &&
+            !normText.contains("hoa don thanh toan") &&
+            !normText.contains("hoa don")
+
     private fun ScoredCandidate.score(largest: Long): ScoredCandidate {
         var total = 0
         val reasons = mutableListOf<String>()
-        if (strongKeywords.any { normLine.contains(it) }) {
+        if (hasTrustedPayableKeyword(normContext)) {
             total += 60
             reasons += "priority keyword"
         } else if (normLine.contains("gia")) {
@@ -152,6 +231,7 @@ object AmountExtractor {
         val lineIndex: Int,
         val totalLines: Int,
         val normLine: String,
+        val normContext: String,
         val score: Int = 0,
         val reason: String = ""
     )

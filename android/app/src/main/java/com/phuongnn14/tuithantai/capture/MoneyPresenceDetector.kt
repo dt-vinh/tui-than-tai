@@ -4,14 +4,15 @@ object MoneyPresenceDetector {
     fun detect(rawOcrText: String, sourceImageUri: String? = null): ExpenseCaptureResult? {
         val amountResult = AmountExtractor.extract(rawOcrText) ?: return null
         val merchant = MerchantExtractor.extract(rawOcrText)
-        val category = CategoryResolver.resolve(rawOcrText)
+        val productNote = ProductNoteExtractor.extract(rawOcrText) ?: merchant
+        val category = CategoryResolver.resolve(rawOcrText, productNote)
         val confidence = amountResult.confidence
 
         return ExpenseCaptureResult(
             mode = CaptureMode.MONEY_SCAN,
             transactionType = TransactionType.EXPENSE,
             amount = amountResult.amount,
-            productNote = merchant,
+            productNote = productNote,
             merchantName = merchant,
             categoryName = category,
             confidence = confidence,
@@ -22,16 +23,18 @@ object MoneyPresenceDetector {
     }
 
     fun uncertainDraft(rawOcrText: String, sourceImageUri: String? = null): ExpenseCaptureResult =
-        ExpenseCaptureResult(
-            mode = CaptureMode.MONEY_SCAN,
-            transactionType = TransactionType.EXPENSE,
-            amount = null,
-            productNote = MerchantExtractor.extract(rawOcrText),
-            merchantName = MerchantExtractor.extract(rawOcrText),
-            categoryName = CategoryResolver.resolve(rawOcrText),
-            confidence = 0f,
-            rawOcrText = rawOcrText,
-            sourceImageUri = sourceImageUri,
-            needsReview = true
-        )
+        ProductNoteExtractor.extract(rawOcrText).let { productNote ->
+            ExpenseCaptureResult(
+                mode = CaptureMode.MONEY_SCAN,
+                transactionType = TransactionType.EXPENSE,
+                amount = null,
+                productNote = productNote ?: MerchantExtractor.extract(rawOcrText),
+                merchantName = MerchantExtractor.extract(rawOcrText),
+                categoryName = CategoryResolver.resolve(rawOcrText, productNote),
+                confidence = 0f,
+                rawOcrText = rawOcrText,
+                sourceImageUri = sourceImageUri,
+                needsReview = true
+            )
+        }
 }

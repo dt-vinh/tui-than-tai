@@ -10,8 +10,9 @@ object CategoryResolver {
         Rule(
             categoryName = "Ăn uống",
             tokens = listOf(
-                "sui cao", "com", "mi", "tra", "cafe", "ca phe", "restaurant",
-                "quan", "bun", "pho", "lau", "nha hang", "food", "coffee", "tea"
+                "sui cao", "com", "mi", "tra sua", "tra dao", "tra chanh",
+                "tra thao moc", "cafe", "ca phe", "restaurant", "bun", "pho",
+                "lau", "nha hang", "food", "coffee", "tea"
             )
         ),
         Rule(
@@ -29,7 +30,10 @@ object CategoryResolver {
             categoryName = "Mua sắm",
             tokens = listOf(
                 "dong ho", "watch", "quan ao", "clothes", "shoes", "giay",
-                "shopping", "sach", "book", "fashion accessory"
+                "shopping", "sach", "book", "fashion accessory", "shopee",
+                "lazada", "tiki", "iphone", "ipad", "macbook", "apple",
+                "samsung", "oppo", "xiaomi", "dien thoai", "smartphone",
+                "laptop", "may tinh", "dien tu", "phu kien"
             )
         ),
         Rule(

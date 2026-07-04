@@ -6,6 +6,9 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import com.phuongnn14.tuithantai.BuildConfig
+import com.phuongnn14.tuithantai.capture.AmountExtractor
+import com.phuongnn14.tuithantai.capture.CategoryResolver
+import com.phuongnn14.tuithantai.capture.ProductNoteExtractor
 import com.phuongnn14.tuithantai.data.CategoryEntity
 import com.phuongnn14.tuithantai.ocr.DocumentType
 import com.phuongnn14.tuithantai.ocr.MoneyParser
@@ -127,6 +130,24 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
             Log.d("OcrRawText", "[$i] $line")
         }
 
+        val captureAmount = AmountExtractor.extract(engineResult.rawText)
+        val productNote = ProductNoteExtractor.extract(engineResult.rawText)
+        if (captureAmount != null && (productNote != null || captureAmount.amount == 0L)) {
+            val captureCategory = CategoryResolver.resolve(engineResult.rawText, productNote)
+            return ExpenseSuggestion(
+                title = productNote ?: inferTitle(engineResult.rawText).orEmpty(),
+                amount = captureAmount.amount,
+                categoryId = mapCaptureCategoryId(captureCategory),
+                ocrText = engineResult.rawText,
+                labels = emptyList(),
+                needsReview = captureAmount.amount == 0L || captureAmount.confidence < LOCAL_REVIEW_THRESHOLD,
+                reviewFields = if (captureAmount.amount == 0L) listOf("total_amount") else emptyList(),
+                ocrEngine = "${engineResult.engineName}-capture-parser",
+                ocrConfidence = captureAmount.confidence,
+                ocrElapsedMs = elapsed
+            )
+        }
+
         val result = ocrAnalyzer.analyze(engineResult.rawText)
         Log.d(TAG, "SmartResolver: total=${result.totalAmount} conf=${result.confidence} " +
             "cat=${result.categoryId} needsReview=${result.needsUserReview}")
@@ -190,6 +211,18 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
             .map { it.trim() }
             .firstOrNull { it.length in 3..48 && !it.any(Char::isDigit) }
             ?: labels.firstOrNull { it.length in 3..48 }
+
+    private fun mapCaptureCategoryId(categoryName: String): String {
+        val normalized = AmountExtractor.normalize(categoryName)
+        return when {
+            normalized.contains("an uong") -> "food"
+            normalized.contains("mua sam") -> "shopping"
+            normalized.contains("y te") -> "health"
+            normalized.contains("di chuyen") -> "transport"
+            normalized.contains("hoa don") || normalized.contains("dich vu") -> "bills"
+            else -> "other"
+        }
+    }
 
     // ── Legacy helpers kept for unit-test compatibility ───────────────────────
 
