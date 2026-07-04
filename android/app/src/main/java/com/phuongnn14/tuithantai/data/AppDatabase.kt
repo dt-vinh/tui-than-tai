@@ -109,7 +109,24 @@ interface AccountDao {
     suspend fun deleteAccountByName(name: String)
 
     @Query("UPDATE accounts SET balance = balance + :amount WHERE name = :name")
-    suspend fun adjustBalance(name: String, amount: Double)
+    suspend fun adjustBalance(name: String, amount: Double): Int
+}
+
+@Dao
+abstract class WalletTransactionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    protected abstract suspend fun insertTransactionInternal(transaction: TransactionEntity): Long
+
+    @Query("UPDATE accounts SET balance = balance + :amount WHERE name = :name")
+    protected abstract suspend fun adjustBalanceInternal(name: String, amount: Double): Int
+
+    @Transaction
+    open suspend fun insertTransactionAndAdjustBalance(transaction: TransactionEntity) {
+        insertTransactionInternal(transaction)
+        val multiplier = if (transaction.type == "INCOME") 1.0 else -1.0
+        val updatedRows = adjustBalanceInternal(transaction.accountName, transaction.amount * multiplier)
+        check(updatedRows == 1) { "Account not found: ${transaction.accountName}" }
+    }
 }
 
 @Dao
@@ -194,6 +211,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun recurringDao(): RecurringTransactionDao
     abstract fun settingDao(): UserSettingDao
+    abstract fun walletTransactionDao(): WalletTransactionDao
 
     companion object {
         @Volatile
@@ -226,9 +244,7 @@ class LuckyWalletRepository(private val db: AppDatabase) {
     val recurringTransactions: Flow<List<RecurringTransactionEntity>> = db.recurringDao().getAllRecurringFlow()
 
     suspend fun insertTransaction(transaction: TransactionEntity) {
-        db.transactionDao().insertTransaction(transaction)
-        val multiplier = if (transaction.type == "INCOME") 1.0 else -1.0
-        db.accountDao().adjustBalance(transaction.accountName, transaction.amount * multiplier)
+        db.walletTransactionDao().insertTransactionAndAdjustBalance(transaction)
     }
 
     suspend fun deleteTransaction(transaction: TransactionEntity) {
