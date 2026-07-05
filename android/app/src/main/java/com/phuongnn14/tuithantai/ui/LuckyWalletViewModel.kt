@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToLong
 
 class LuckyWalletViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -465,31 +466,50 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun calculateSettlements(rawParticipants: String, payer: String, totalAmount: Double): SplitBillResult {
-        val participants = rawParticipants.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-        if (participants.isEmpty() || totalAmount <= 0.0) return SplitBillResult(emptyMap(), emptyList())
+        return SplitBillCalculator.calculate(rawParticipants, payer, totalAmount)
+    }
+}
 
-        val share = totalAmount / participants.size
-        val balances = participants.associateWith { name ->
-            val paid = if (name.equals(payer, ignoreCase = true)) totalAmount else 0.0
-            paid - share
+internal object SplitBillCalculator {
+    fun calculate(rawParticipants: String, payer: String, totalAmount: Double): SplitBillResult {
+        val participants = rawParticipants.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        val totalVnd = totalAmount.roundToLong()
+        if (participants.isEmpty() || totalVnd <= 0L) return SplitBillResult(emptyMap(), emptyList())
+
+        val shares = splitShares(totalVnd, participants.size)
+        val balancesLong = participants.mapIndexed { index, name ->
+            val paid = if (name.equals(payer, ignoreCase = true)) totalVnd else 0L
+            name to (paid - shares[index])
+        }.toMap()
+        if (participants.any { it.equals(payer, ignoreCase = true) }) {
+            check(balancesLong.values.sum() == 0L) { "Split bill balances must sum to zero" }
         }
 
-        val creditors = balances.filter { it.value > 0.0 }.map { Pair(it.key, it.value) }.toMutableList()
-        val debtors = balances.filter { it.value < 0.0 }.map { Pair(it.key, -it.value) }.toMutableList()
+        val creditors = balancesLong.filter { it.value > 0L }.map { Pair(it.key, it.value) }.toMutableList()
+        val debtors = balancesLong.filter { it.value < 0L }.map { Pair(it.key, -it.value) }.toMutableList()
         val suggestions = mutableListOf<SettlementSuggestion>()
         var cIdx = 0; var dIdx = 0
 
         while (cIdx < creditors.size && dIdx < debtors.size) {
             val creditor = creditors[cIdx]; val debtor = debtors[dIdx]
             val transfer = minOf(creditor.second, debtor.second)
-            suggestions.add(SettlementSuggestion(debtor.first, creditor.first, transfer))
+            suggestions.add(SettlementSuggestion(debtor.first, creditor.first, transfer.toDouble()))
             creditors[cIdx] = Pair(creditor.first, creditor.second - transfer)
             debtors[dIdx] = Pair(debtor.first, debtor.second - transfer)
-            if (creditors[cIdx].second < 0.01) cIdx++
-            if (debtors[dIdx].second < 0.01) dIdx++
+            if (creditors[cIdx].second == 0L) cIdx++
+            if (debtors[dIdx].second == 0L) dIdx++
         }
 
-        return SplitBillResult(balances, suggestions)
+        return SplitBillResult(balancesLong.mapValues { it.value.toDouble() }, suggestions)
+    }
+
+    internal fun splitShares(totalVnd: Long, participantCount: Int): List<Long> {
+        if (participantCount <= 0) return emptyList()
+        val baseShare = totalVnd / participantCount
+        val remainder = totalVnd - (baseShare * participantCount)
+        return List(participantCount) { index ->
+            baseShare + if (index == 0) remainder else 0L
+        }
     }
 }
 
