@@ -234,7 +234,12 @@ object AmountExtractor {
             total -= 60
             reasons += "id/date/time-like"
         }
-        return copy(score = total, reason = reasons.joinToString(", "))
+        val clampedTotal = maxOf(0, total)
+        return copy(
+            score = clampedTotal,
+            reason = reasons.joinToString(", "),
+            needsReview = needsReview || clampedTotal == 0
+        )
     }
 
     private fun normalizeMoneyChars(raw: String): String =

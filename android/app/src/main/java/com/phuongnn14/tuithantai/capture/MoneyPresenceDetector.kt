@@ -35,7 +35,7 @@ object MoneyPresenceDetector {
             confidence = confidence,
             rawOcrText = rawOcrText,
             sourceImageUri = sourceImageUri,
-            needsReview = confidence < OcrThresholds.AUTO_FILL
+            needsReview = amountResult.needsReview || confidence < OcrThresholds.AUTO_FILL
         )
     }
 

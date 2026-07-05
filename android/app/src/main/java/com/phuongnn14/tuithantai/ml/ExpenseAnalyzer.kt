@@ -140,9 +140,14 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                 categoryId = mapCaptureCategoryId(captureCategory),
                 ocrText = engineResult.rawText,
                 labels = emptyList(),
-                needsReview = captureAmount.amount == 0L ||
+                needsReview = captureAmount.needsReview ||
+                    captureAmount.amount == 0L ||
                     captureAmount.confidence < OcrThresholds.LOCAL_FALLBACK,
-                reviewFields = if (captureAmount.amount == 0L) listOf("total_amount") else emptyList(),
+                reviewFields = if (captureAmount.needsReview || captureAmount.amount == 0L) {
+                    listOf("total_amount")
+                } else {
+                    emptyList()
+                },
                 ocrEngine = "${engineResult.engineName}-capture-parser",
                 ocrConfidence = captureAmount.confidence,
                 ocrElapsedMs = elapsed

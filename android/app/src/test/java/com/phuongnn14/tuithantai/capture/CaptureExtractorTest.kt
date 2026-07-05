@@ -68,6 +68,14 @@ class CaptureExtractorTest {
     }
 
     @Test
+    fun amountNeedsReviewPropagatesToCaptureResult() {
+        val result = MoneyPresenceDetector.detect("Tong tien: 1.000.000.000.000 VND")
+
+        assertEquals(1_000_000_000_000L, result?.amount)
+        assertTrue(result?.needsReview == true)
+    }
+
+    @Test
     fun vietnameseTenThousandBanknoteIsDetected() {
         val text = """
             CONG HOA XA HOI CHU NGHIA
