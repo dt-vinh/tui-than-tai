@@ -4,6 +4,21 @@ import com.phuongnn14.tuithantai.ocr.OcrThresholds
 
 object MoneyPresenceDetector {
     fun detect(rawOcrText: String, sourceImageUri: String? = null): ExpenseCaptureResult? {
+        VietnameseBanknoteDetector.detect(rawOcrText)?.let { banknote ->
+            return ExpenseCaptureResult(
+                mode = CaptureMode.MONEY_SCAN,
+                transactionType = TransactionType.EXPENSE,
+                amount = banknote.amount,
+                productNote = banknote.note,
+                merchantName = null,
+                categoryName = "Khác",
+                confidence = banknote.confidence,
+                rawOcrText = rawOcrText,
+                sourceImageUri = sourceImageUri,
+                needsReview = banknote.needsReview
+            )
+        }
+
         val amountResult = AmountExtractor.extract(rawOcrText) ?: return null
         val merchant = MerchantExtractor.extract(rawOcrText)
         val productNote = ProductNoteExtractor.extract(rawOcrText) ?: merchant
@@ -25,6 +40,20 @@ object MoneyPresenceDetector {
     }
 
     fun uncertainDraft(rawOcrText: String, sourceImageUri: String? = null): ExpenseCaptureResult =
+        VietnameseBanknoteDetector.detect(rawOcrText)?.let { banknote ->
+            ExpenseCaptureResult(
+                mode = CaptureMode.MONEY_SCAN,
+                transactionType = TransactionType.EXPENSE,
+                amount = banknote.amount,
+                productNote = banknote.note,
+                merchantName = null,
+                categoryName = "Khác",
+                confidence = banknote.confidence,
+                rawOcrText = rawOcrText,
+                sourceImageUri = sourceImageUri,
+                needsReview = banknote.needsReview
+            )
+        } ?:
         ProductNoteExtractor.extract(rawOcrText).let { productNote ->
             ExpenseCaptureResult(
                 mode = CaptureMode.MONEY_SCAN,

@@ -68,6 +68,40 @@ class CaptureExtractorTest {
     }
 
     @Test
+    fun vietnameseTenThousandBanknoteIsDetected() {
+        val text = """
+            CONG HOA XA HOI CHU NGHIA
+            VIET NAM
+            MUOI NGHIN
+            DONG
+            10000
+            D000
+            CX 23374345
+        """.trimIndent()
+
+        val result = MoneyPresenceDetector.detect(text)
+
+        assertEquals(10_000L, result?.amount)
+        assertEquals("Khác", result?.categoryName)
+        assertTrue(result?.needsReview == true)
+    }
+
+    @Test
+    fun blurryBanknoteNumericOnlyHasLowConfidence() {
+        val result = VietnameseBanknoteDetector.detect(
+            """
+            CONG HOA XA HOI
+            DONG
+            500
+            """.trimIndent()
+        )
+
+        assertEquals(500L, result?.amount)
+        assertEquals(0.40f, result?.confidence ?: 0f, 0.0f)
+        assertTrue(result?.needsReview == true)
+    }
+
+    @Test
     fun merchantIsTitleCased() {
         val result = MerchantExtractor.extract(
             """
