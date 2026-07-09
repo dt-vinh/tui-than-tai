@@ -22,7 +22,8 @@ data class AmountExtractionResult(
     val amount: Long,
     val sourceLine: String,
     val confidence: Float,
-    val reason: String
+    val reason: String,
+    val needsReview: Boolean = false
 )
 
 data class ObjectClassificationResult(

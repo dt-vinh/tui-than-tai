@@ -1,0 +1,21 @@
+{
+  "image_id": "receipt_quan_an_dong_vui_001",
+  "document_type": "pos_receipt",
+  "expected": {
+    "merchant_name": "QUÁN ĂN ĐÔNG VUI",
+    "transaction_type": "expense",
+    "category_id": "food",
+    "currency": "VND",
+    "total_amount": 40000,
+    "payment_method": "cash",
+    "items": [
+      {"name": "Cơm Tấm Sườn", "quantity": 1, "unit_price": 35000, "line_total": 35000},
+      {"name": "Trà Đá", "quantity": 1, "unit_price": 5000, "line_total": 5000}
+    ]
+  },
+  "must_not": [
+    "Do not pick 35000 or 5000 as total — TỔNG CỘNG 40000 must be selected",
+    "Do not fill merchant with placeholder if name is on receipt"
+  ],
+  "review_expected": false
+}

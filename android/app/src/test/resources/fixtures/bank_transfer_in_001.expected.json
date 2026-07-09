@@ -1,0 +1,17 @@
+{
+  "image_id": "bank_transfer_in_001",
+  "document_type": "payment_confirmation",
+  "expected": {
+    "transaction_type": "income",
+    "currency": "VND",
+    "fields": [
+      "amount",
+      "sender_name",
+      "transaction_time",
+      "note"
+    ]
+  },
+  "must_not": [
+    "Do not classify as expense when the screenshot indicates received money or + amount"
+  ]
+}

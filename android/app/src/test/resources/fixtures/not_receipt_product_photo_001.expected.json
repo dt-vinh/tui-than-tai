@@ -1,0 +1,13 @@
+{
+  "image_id": "not_receipt_product_photo_001",
+  "document_type": "not_receipt",
+  "expected": {
+    "total_amount": null,
+    "title": "",
+    "items": [],
+    "needs_user_review": true
+  },
+  "must_not": [
+    "Do not create fake transaction from product photo"
+  ]
+}

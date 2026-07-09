@@ -1,0 +1,22 @@
+{
+  "image_id": "receipt_cafe_gia_dinh_zero_item_002",
+  "document_type": "pos_receipt",
+  "expected": {
+    "merchant_name": "TIỆM CÀ PHÊ GIA ĐÌNH",
+    "transaction_type": "expense",
+    "category_id": "coffee",
+    "currency": "VND",
+    "total_amount": 40000,
+    "payment_method": "cash",
+    "items": [
+      {"name": "Cà Phê Đen Đá (L)", "quantity": 1, "unit_price": 28000, "line_total": 28000},
+      {"name": "Bánh Mì Kẹp", "quantity": 1, "unit_price": 12000, "line_total": 12000},
+      {"name": "Nước Lọc", "quantity": 2, "unit_price": 0, "line_total": 0}
+    ]
+  },
+  "must_not": [
+    "Do not skip zero-price items (Nước Lọc = 0đ is still a valid line item)",
+    "Do not pick 28000 or 12000 as total — TỔNG CỘNG 40000 is correct"
+  ],
+  "review_expected": false
+}

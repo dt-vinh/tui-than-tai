@@ -1,0 +1,10 @@
+{
+  "image_id": "supermarket_change_001",
+  "document_type": "pos_receipt",
+  "expected": {
+    "transaction_type": "expense",
+    "category_id": "shopping",
+    "currency": "VND",
+    "total_selection_rule": "Select Thanh toán/Tổng cộng, not Khách đưa or Tiền thừa"
+  }
+}

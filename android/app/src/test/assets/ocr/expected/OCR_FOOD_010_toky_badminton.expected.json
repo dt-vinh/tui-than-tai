@@ -1,0 +1,30 @@
+{
+  "case_id": "OCR_FOOD_010",
+  "image_name": "OCR_FOOD_010_toky_badminton_food.jpg",
+  "description": "Hóa đơn Tô Ký Badminton – thuê sân + bia/đồ ăn, tổng 6.850.000 VND",
+  "expected": {
+    "document_type": "receipt",
+    "transaction_type": "expense",
+    "merchant_name": "TÔ KÝ BADMINTON",
+    "category_id": "food_and_drink",
+    "currency": "VND",
+    "total_amount": 6850000,
+    "items": [
+      { "name": "Thuê sân",     "quantity": 2, "unit_price": 200000, "line_total": 400000 },
+      { "name": "Bia Tiger",    "quantity": 12, "unit_price": 25000, "line_total": 300000 },
+      { "name": "Khô bò",       "quantity": 1,  "unit_price": 120000, "line_total": 120000 },
+      { "name": "Nước ngọt",    "quantity": 6,  "unit_price": 10000,  "line_total": 60000 },
+      { "name": "Nước suối",    "quantity": 6,  "unit_price": 6000,   "line_total": 36000 }
+    ],
+    "must_not_hallucinate": true,
+    "needs_user_review": false
+  },
+  "acceptance": {
+    "total_amount_must_match": true,
+    "currency_must_match": true,
+    "category_must_match": false,
+    "items_min_match_rate": 0.6,
+    "allow_review_flag": true
+  },
+  "notes": "Merchant là sân thể thao nhưng items chủ yếu là bia + đồ ăn → ưu tiên items khi phân category."
+}

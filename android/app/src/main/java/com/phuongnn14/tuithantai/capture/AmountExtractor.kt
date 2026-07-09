@@ -1,8 +1,12 @@
 package com.phuongnn14.tuithantai.capture
 
+import android.util.Log
 import java.text.Normalizer
 
 object AmountExtractor {
+    private const val TAG = "AmountExtractor"
+    private const val MAX_CONFIDENT_AMOUNT_VND = 999_999_999_999L
+
     private val priorityKeywords = listOf(
         "tong thanh toan", "thanh toan", "tong cong", "phai tra", "thanh tien",
         "tong tien", "total", "grand total", "amount due", "gia"
@@ -31,6 +35,8 @@ object AmountExtractor {
         val lines = rawText.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.toList()
         if (lines.isEmpty()) return null
 
+        explicitZeroCodAmount(lines)?.let { return it }
+
         val normalizedLines = lines.map { normalize(it) }
         val candidates = mutableListOf<ScoredCandidate>()
         lines.forEachIndexed { index, line ->
@@ -41,13 +47,16 @@ object AmountExtractor {
                 val amount = parseVndAmount(match.value) ?: return@forEach
                 if (amount <= 0L) return@forEach
                 if (looksLikeNoise(lines, index, match.value, amount, normLine, normContext)) return@forEach
+                val amountNeedsReview = amount > MAX_CONFIDENT_AMOUNT_VND
+                if (amountNeedsReview) logAmountOverCeiling(amount, line)
                 candidates += ScoredCandidate(
                     amount = amount,
                     sourceLine = line,
                     lineIndex = index,
                     totalLines = lines.size,
                     normLine = normLine,
-                    normContext = normContext
+                    normContext = normContext,
+                    needsReview = amountNeedsReview
                 )
             }
         }
@@ -66,7 +75,8 @@ object AmountExtractor {
             amount = best.amount,
             sourceLine = best.sourceLine,
             confidence = confidence,
-            reason = best.reason
+            reason = best.reason,
+            needsReview = best.needsReview
         )
     }
 
@@ -88,7 +98,7 @@ object AmountExtractor {
 
         val parsed = numeric.toLongOrNull() ?: return null
         val amount = if (isK) parsed * 1_000L else parsed
-        return amount.takeIf { it in 1..999_999_999L }
+        return amount.takeIf { it >= 0L }
     }
 
     private fun segmentAfterPriorityKeyword(line: String, normLine: String): String? {
@@ -97,6 +107,32 @@ object AmountExtractor {
         val keywordEnd = normLine.indexOf(keyword) + keyword.length
         return line.drop(keywordEnd.coerceAtMost(line.length))
     }
+
+    private fun explicitZeroCodAmount(lines: List<String>): AmountExtractionResult? {
+        lines.forEachIndexed { index, line ->
+            val normLine = normalize(line)
+            val nextLine = lines.getOrNull(index + 1).orEmpty()
+            val sameLineHasZeroMoney = Regex("""(?i)(^|[^0-9])0\s*(vnd|vnđ|đ|d)([^a-z0-9]|$)""")
+                .containsMatchIn(line)
+            val nextLineHasZeroMoney = Regex("""(?i)^0\s*(vnd|vnđ|đ|d)?$""")
+                .containsMatchIn(nextLine.trim())
+            if (isCodAmountLine(normLine) && (sameLineHasZeroMoney || nextLineHasZeroMoney)) {
+                return AmountExtractionResult(
+                    amount = 0L,
+                    sourceLine = if (sameLineHasZeroMoney) line else "$line $nextLine",
+                    confidence = 0.86f,
+                    reason = "explicit zero COD amount"
+                )
+            }
+        }
+        return null
+    }
+
+    private fun isCodAmountLine(normLine: String): Boolean =
+        normLine.contains("tien thu nguoi nhan") ||
+            normLine.contains("tien thu ng nhan") ||
+            normLine.contains("tien thu") ||
+            normLine.contains("cod")
 
     private fun buildNormContext(normalizedLines: List<String>, index: Int): String =
         listOfNotNull(
@@ -126,8 +162,20 @@ object AmountExtractor {
         if (Regex("""\d+\s*%""").containsMatchIn(line)) return true
 
         val digits = rawAmount.filter { it.isDigit() }
-        if (digits.length >= 10 && !hasTrustedPayableKeyword(normContext)) return true
+        if (digits.length >= 10 && !hasTrustedPayableKeyword(normContext) && !hasCurrencySignal(rawAmount)) return true
         return false
+    }
+
+    private fun hasCurrencySignal(rawAmount: String): Boolean =
+        Regex("""(?i)(VND|VNÄ|vnÄ‘|Ä‘|d)\s*$""").containsMatchIn(rawAmount.trim())
+
+    private fun logAmountOverCeiling(amount: Long, sourceLine: String) {
+        runCatching {
+            Log.w(
+                TAG,
+                "Amount exceeds confident ceiling: amount=$amount ceiling=$MAX_CONFIDENT_AMOUNT_VND line=$sourceLine"
+            )
+        }
     }
 
     private fun isTableOrSeatLine(normLine: String): Boolean =
@@ -141,10 +189,7 @@ object AmountExtractor {
     private fun hasMeasurementUnitAroundAmount(lines: List<String>, index: Int, rawAmount: String): Boolean {
         if (hasMeasurementUnitAfterAmount(lines[index], rawAmount)) return true
         val nextLine = lines.getOrNull(index + 1)?.trim().orEmpty()
-        if (nextLine.matches(Regex("""(?i)^(g|gr|gram|grams|kg|kgs|ml|l|lit|liter|litre|cm|mm|m)\b.*"""))) {
-            return true
-        }
-        return false
+        return nextLine.matches(Regex("""(?i)^(g|gr|gram|grams|kg|kgs|ml|l|lit|liter|litre|cm|mm|m)\b.*"""))
     }
 
     private fun hasMeasurementUnitAfterAmount(line: String, rawAmount: String): Boolean {
@@ -189,7 +234,12 @@ object AmountExtractor {
             total -= 60
             reasons += "id/date/time-like"
         }
-        return copy(score = total, reason = reasons.joinToString(", "))
+        val clampedTotal = maxOf(0, total)
+        return copy(
+            score = clampedTotal,
+            reason = reasons.joinToString(", "),
+            needsReview = needsReview || clampedTotal == 0
+        )
     }
 
     private fun normalizeMoneyChars(raw: String): String =
@@ -208,6 +258,7 @@ object AmountExtractor {
         val normLine: String,
         val normContext: String,
         val score: Int = 0,
-        val reason: String = ""
+        val reason: String = "",
+        val needsReview: Boolean = false
     )
 }

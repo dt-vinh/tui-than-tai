@@ -1,10 +1,13 @@
 package com.phuongnn14.tuithantai.capture
 
+import com.phuongnn14.tuithantai.ocr.OcrThresholds
+
 object VietnameseBanknoteDetector {
     data class Detection(
         val amount: Long,
         val confidence: Float,
-        val note: String
+        val note: String,
+        val needsReview: Boolean
     )
 
     private data class Denomination(
@@ -78,16 +81,19 @@ object VietnameseBanknoteDetector {
 
         if (hits.isEmpty()) return null
         val total = hits.sumOf { (amount, count) -> amount * count.coerceAtLeast(1) }
+        val wordHitCount = wordHitsByAmount.values.sum()
         val confidence = when {
-            hits.any { (_, count) -> count > 1 } -> 0.9f
-            hits.size == 1 -> 0.92f
-            else -> 0.86f
+            wordHitCount >= 3 -> 0.92f
+            wordHitCount == 2 -> 0.86f
+            wordHitCount == 1 -> 0.65f
+            else -> 0.40f
         }
 
         return Detection(
             amount = total,
             confidence = confidence,
-            note = "Tiền Việt Nam ${formatVnd(total)}"
+            note = "Tiền Việt Nam ${formatVnd(total)}",
+            needsReview = confidence < OcrThresholds.AUTO_FILL
         )
     }
 

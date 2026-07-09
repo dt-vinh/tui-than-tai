@@ -1,0 +1,23 @@
+{
+  "image_id": "receipt_cafe_gia_dinh_tien_thua_001",
+  "document_type": "pos_receipt",
+  "expected": {
+    "merchant_name": "TIỆM CÀ PHÊ GIA ĐÌNH",
+    "transaction_type": "expense",
+    "category_id": "coffee",
+    "currency": "VND",
+    "total_amount": 100000,
+    "payment_method": "cash",
+    "items": [
+      {"name": "Cà Phê Sữa Đá (L)", "quantity": 2, "unit_price": 35000, "line_total": 70000},
+      {"name": "Bánh Croissant", "quantity": 1, "unit_price": 25000, "line_total": 25000},
+      {"name": "Nước Suối (L)", "quantity": 1, "unit_price": 5000, "line_total": 5000}
+    ]
+  },
+  "must_not": [
+    "Do not pick Tiền nhận: 200000 as total",
+    "Do not pick Tiền thừa: 100000 as total",
+    "TỔNG CỘNG: 100000 must be selected"
+  ],
+  "review_expected": false
+}

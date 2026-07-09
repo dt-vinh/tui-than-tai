@@ -1,0 +1,21 @@
+case_id,input,setting_or_description,expected,note
+OCR-MONEY-001,125000,VND default,125000,Plain integer VND
+OCR-MONEY-002,125.000đ,VND,125000,Dot thousands
+OCR-MONEY-003,"125,000 đ",VND,125000,Comma thousands
+OCR-MONEY-004,1 250 000 VND,VND,1250000,Space thousands
+OCR-MONEY-005,125K,VND,125000,K suffix
+OCR-MONEY-006,"6,85O,OOO đ",VND,6850000,OCR O->0
+OCR-MONEY-007,$12.50,USD,12.50,Dollar sign
+OCR-MONEY-008,"12,50 USD",USD vi,12.50,Vietnamese decimal comma
+OCR-MONEY-009,17:45,None,null,Time must not be amount
+OCR-MONEY-010,05/06/2026,None,null,Date must not be amount
+OCR-IMG-001,"Ảnh rõ, thẳng, đủ hóa đơn",,"Parse full fields, confidence high",image_quality
+OCR-IMG-002,Ảnh nghiêng 5-15 độ,,"Auto-rotate/crop, confidence medium/high",image_quality
+OCR-IMG-003,Ảnh nghiêng nặng >30 độ,,Try deskew; if fail ask retake/needs_review,image_quality
+OCR-IMG-004,Ảnh mờ do rung tay,,Do not hallucinate; confidence low,image_quality
+OCR-IMG-005,Ảnh tối/thiếu sáng,,Preprocess contrast; still needs_review if unclear,image_quality
+OCR-IMG-006,Hóa đơn bị cắt mất dòng tổng,,total=null; ask user input,image_quality
+OCR-IMG-007,"Hóa đơn dài, chỉ chụp phần đầu",,items maybe; total=null,image_quality
+OCR-IMG-008,"Hóa đơn dài, chụp toàn bộ nhưng chữ nhỏ",,Prefer total; items optional confidence low,image_quality
+OCR-IMG-009,Giấy in nhiệt mờ/phai,,Extract only clear fields; no fake names,image_quality
+OCR-IMG-010,"Nền phức tạp, bill đặt trên bàn",,Crop receipt; avoid reading background text,image_quality

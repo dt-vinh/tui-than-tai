@@ -1,0 +1,25 @@
+{
+  "case_id": "OCR_BANK_IN_001",
+  "image_name": "OCR_BANK_IN_001_receive_money.jpg",
+  "description": "Screenshot ngân hàng nhận tiền +500.000 VND",
+  "expected": {
+    "document_type": "bank_transfer",
+    "transaction_type": "income",
+    "merchant_name": "",
+    "category_id": "income",
+    "currency": "VND",
+    "total_amount": 500000,
+    "items": [],
+    "must_not_hallucinate": true,
+    "needs_user_review": false,
+    "must_not_select": ["Số dư"]
+  },
+  "acceptance": {
+    "total_amount_must_match": true,
+    "currency_must_match": true,
+    "category_must_match": false,
+    "items_min_match_rate": 0.0,
+    "allow_review_flag": true
+  },
+  "notes": "Dấu + trước số tiền = income. Số dư sau giao dịch KHÔNG phải số tiền nhận được."
+}

@@ -1,0 +1,223 @@
+case_id,group,image_type,input_description,expected_transaction_type,expected_category,expected_currency,expected_total_rule,expected_items_rule,should_hallucinate,needs_review_expected,priority
+OCR_FOOD_001,A,food_receipt,Bill quán cơm rõ nét có tổng cộng,expense,food_and_drink,VND,dong_tong_cong,parse_items,false,false,P0
+OCR_FOOD_002,A,food_receipt,Bill phở/bún chỉ có 1 món,expense,food_and_drink,VND,dong_tong_hoac_items,parse_1_item,false,false,P0
+OCR_FOOD_003,A,food_receipt,Bill cafe nhiều dòng cafe/trà/bánh,expense,food_and_drink,VND,dong_tong_cong,parse_line_items,false,false,P0
+OCR_FOOD_004,A,food_receipt,Bill trà sữa có topping + discount,expense,food_and_drink,VND,tong_sau_discount,parse_items,false,false,P1
+OCR_FOOD_005,A,food_receipt,Bill nhà hàng có VAT 8%/10%,expense,food_and_drink,VND,khong_chon_VAT,parse_items,false,false,P0
+OCR_FOOD_006,A,food_receipt,Bill có phí phục vụ/service charge,expense,food_and_drink,VND,tong_bao_gom_phi,parse_items,false,false,P1
+OCR_FOOD_007,A,food_receipt,Bill có Tạm tính + VAT + Tổng cộng,expense,food_and_drink,VND,chon_tong_cong,parse_items,false,false,P0
+OCR_FOOD_008,A,food_receipt,Bill có Khách đưa + Tiền thừa,expense,food_and_drink,VND,khong_chon_khach_dua,parse_items,false,false,P0
+OCR_FOOD_009,A,food_receipt,Bill nhiều bàn/người có Bàn số 5,expense,food_and_drink,VND,dong_tong,no_table_num,false,false,P1
+OCR_FOOD_010,A,food_receipt,Bill sân thể thao item là bia/đồ ăn,expense,food_and_drink,VND,6850000,parse_items,false,false,P0
+OCR_FOOD_011,A,food_receipt,Bill có món xuống dòng 2 dòng,expense,food_and_drink,VND,dong_tong,merge_lines,false,false,P2
+OCR_FOOD_012,A,food_receipt,Bill có combo 2 người,expense,food_and_drink,VND,dong_tong,combo_as_item,false,false,P2
+OCR_FOOD_013,A,food_receipt,Bill chỉ thấy tổng tiền không thấy item,expense,food_and_drink,VND,dong_tong,items_empty_ok,false,false,P0
+OCR_FOOD_014,A,food_receipt,Bill mờ chỉ đọc được vài chữ,expense,food_and_drink,VND,best_effort,no_hallucinate,false,true,P0
+OCR_FOOD_015,A,food_receipt,Bill có Tổng tạm tính ở cuối không có tổng khác,expense,food_and_drink,VND,tam_tinh_as_total,parse_items,false,false,P1
+OCR_RETAIL_001,B,retail_receipt,Hóa đơn Winmart/Coopmart rõ nét,expense,shopping,VND,dong_tong,parse_items,false,false,P0
+OCR_RETAIL_002,B,retail_receipt,Hóa đơn nhiều sản phẩm nhỏ,expense,shopping,VND,dong_tong,min_total_correct,false,false,P0
+OCR_RETAIL_003,B,retail_receipt,Hóa đơn dài nhiều item,expense,shopping,VND,dong_tong,no_crash,false,false,P0
+OCR_RETAIL_004,B,retail_receipt,Hóa đơn có Tiền khách đưa,expense,shopping,VND,khong_chon_khach_dua,parse_items,false,false,P0
+OCR_RETAIL_005,B,retail_receipt,Hóa đơn có Tiền trả lại,expense,shopping,VND,khong_chon_tra_lai,parse_items,false,false,P0
+OCR_RETAIL_006,B,retail_receipt,Hóa đơn có điểm tích lũy,expense,shopping,VND,khong_nham_diem,parse_items,false,false,P0
+OCR_RETAIL_007,B,retail_receipt,Hóa đơn có mã giao dịch nhiều số,expense,shopping,VND,khong_nham_ma_gd,parse_items,false,false,P0
+OCR_RETAIL_008,B,retail_receipt,Hóa đơn bị cắt mất phần đầu,expense,shopping,VND,van_doc_tong,items_partial,false,false,P1
+OCR_RETAIL_009,B,retail_receipt,Hóa đơn bị cắt mất phần tổng,expense,shopping,VND,null,user_input_required,false,true,P1
+OCR_RETAIL_010,B,retail_receipt,Hóa đơn có giảm giá từng dòng,expense,shopping,VND,dong_tong,line_total_after_discount,false,false,P1
+OCR_RETAIL_011,B,retail_receipt,Hóa đơn có Thành tiền và Tổng cộng,expense,shopping,VND,chon_tong_cong,parse_items,false,false,P0
+OCR_RETAIL_012,B,retail_receipt,Ảnh chụp nghiêng hóa đơn siêu thị,expense,shopping,VND,best_effort,items_partial,false,true,P2
+OCR_SERVICE_001,C,service_receipt,Bill thuê sân cầu lông,expense,service,VND,dong_tong,parse_items,false,false,P0
+OCR_SERVICE_002,C,service_receipt,Bill cắt tóc/gội đầu/spa,expense,service,VND,dong_tong,parse_items,false,false,P0
+OCR_SERVICE_003,C,service_receipt,Bill rửa xe,expense,service,VND,dong_tong,parse_items,false,false,P1
+OCR_SERVICE_004,C,service_receipt,Bill sửa xe phụ tùng + công,expense,service,VND,dong_tong,parse_items,false,false,P1
+OCR_SERVICE_005,C,service_receipt,Bill giặt là,expense,service,VND,dong_tong,parse_items,false,false,P2
+OCR_SERVICE_006,C,service_receipt,Bill khách sạn/homestay,expense,travel,VND,dong_tong,parse_items,false,false,P0
+OCR_SERVICE_007,C,service_receipt,Bill phòng gym,expense,service,VND,dong_tong,parse_items,false,false,P1
+OCR_SERVICE_008,C,service_receipt,Bill vé xem phim,expense,entertainment,VND,dong_tong,parse_items,false,false,P1
+OCR_SERVICE_009,C,service_receipt,Bill có đặt cọc,expense,service,VND,so_tien_da_thanh_toan,review_if_ambiguous,false,true,P1
+OCR_SERVICE_010,C,service_receipt,Bill có còn nợ,expense,service,VND,so_da_chi,review_con_no,false,true,P1
+OCR_BANK_OUT_001,D,bank_screenshot,Screenshot chuyển khoản thành công VCB,expense,transfer,VND,so_tien_chuyen,no_items,false,false,P0
+OCR_BANK_OUT_002,D,bank_screenshot,Screenshot BIDV/Techcombank/MB tiền ra,expense,transfer,VND,so_tien,no_items,false,false,P0
+OCR_BANK_OUT_003,D,bank_screenshot,Screenshot có người nhận số TK,expense,transfer,VND,so_tien,no_items,false,false,P1
+OCR_BANK_OUT_004,D,bank_screenshot,Screenshot nội dung cafe,expense,food_and_drink,VND,so_tien,no_items,false,false,P1
+OCR_BANK_OUT_005,D,bank_screenshot,Screenshot nội dung tiền nhà,expense,bills,VND,so_tien,no_items,false,false,P1
+OCR_BANK_OUT_006,D,bank_screenshot,Screenshot mã giao dịch dài,expense,transfer,VND,khong_nham_ma_gd,no_items,false,false,P0
+OCR_BANK_OUT_007,D,bank_screenshot,Screenshot có số dư sau giao dịch,expense,transfer,VND,khong_chon_so_du,no_items,false,false,P0
+OCR_BANK_OUT_008,D,bank_screenshot,Screenshot có phí giao dịch,expense,transfer,VND,so_tien_chinh,phi_la_item_phu,false,false,P1
+OCR_BANK_OUT_009,D,bank_screenshot,Screenshot bị cắt mất số tiền,expense,transfer,VND,null,no_items,false,true,P1
+OCR_BANK_OUT_010,D,bank_screenshot,Screenshot trạng thái Đang xử lý,expense,transfer,VND,best_effort,no_items,false,true,P1
+OCR_BANK_IN_001,E,bank_screenshot,Screenshot nhận tiền thành công,income,income,VND,so_tien_nhan,no_items,false,false,P0
+OCR_BANK_IN_002,E,bank_sms,SMS biến động số dư +500.000,income,income,VND,500000,no_items,false,false,P0
+OCR_BANK_IN_003,E,bank_screenshot,App bank báo Bạn nhận được tiền,income,income,VND,so_tien,no_items,false,false,P0
+OCR_BANK_IN_004,E,bank_sms,Nội dung lương tháng,income,salary,VND,so_tien,no_items,false,false,P0
+OCR_BANK_IN_005,E,bank_sms,Nội dung hoàn tiền,income,refund,VND,so_tien,no_items,false,false,P1
+OCR_BANK_IN_006,E,bank_screenshot,Screenshot có số dư mới,income,income,VND,khong_chon_so_du,no_items,false,false,P0
+OCR_BANK_IN_007,E,bank_screenshot,Screenshot nhiều số tiền,income,income,VND,chon_so_tien_gd,no_items,false,false,P0
+OCR_BANK_IN_008,E,bank_screenshot,Thông báo ngân hàng bị mờ,income,income,VND,best_effort,no_items,false,true,P1
+OCR_BANK_IN_009,E,bank_screenshot,Screenshot không có trạng thái thành công,income,income,VND,best_effort,no_items,false,true,P1
+OCR_BANK_IN_010,E,chat_screenshot,Ảnh chat người khác bảo đã chuyển,unknown,unknown,VND,null,no_items,false,true,P1
+OCR_WALLET_001,F,wallet_screenshot,Momo thanh toán thành công,expense,food_and_drink,VND,so_tien,no_items,false,false,P0
+OCR_WALLET_002,F,wallet_screenshot,ZaloPay thanh toán thành công,expense,any,VND,so_tien,no_items,false,false,P0
+OCR_WALLET_003,F,wallet_screenshot,VNPay QR payment success,expense,any,VND,so_tien,no_items,false,false,P0
+OCR_WALLET_004,F,wallet_screenshot,Momo nhận tiền,income,income,VND,so_tien,no_items,false,false,P0
+OCR_WALLET_005,F,wallet_screenshot,Ví có điểm thưởng/khuyến mãi,expense,any,VND,khong_nham_diem,no_items,false,false,P0
+OCR_WALLET_006,F,qr_image,QR bill có số tiền + mã QR,expense,any,VND,so_tien,no_items,false,false,P1
+OCR_WALLET_007,F,wallet_screenshot,Screenshot có số dư ví sau GD,expense,any,VND,khong_chon_so_du,no_items,false,false,P0
+OCR_WALLET_008,F,wallet_screenshot,Màn nhập thanh toán chưa thanh toán,unknown,any,VND,best_effort,no_items,false,true,P0
+OCR_WALLET_009,F,qr_image,QR không có số tiền,unknown,any,VND,null,no_items,false,true,P0
+OCR_WALLET_010,F,wallet_screenshot,QR payment nội dung ăn tối,expense,food_and_drink,VND,so_tien,no_items,false,false,P1
+OCR_BILL_001,G,utility_bill,Hóa đơn tiền điện,expense,bills,VND,tong_thanh_toan,no_items,false,false,P0
+OCR_BILL_002,G,utility_bill,Hóa đơn tiền nước,expense,bills,VND,tong_thanh_toan,no_items,false,false,P0
+OCR_BILL_003,G,utility_bill,Hóa đơn internet,expense,bills,VND,tong_thanh_toan,no_items,false,false,P0
+OCR_BILL_004,G,utility_bill,Hóa đơn cước điện thoại,expense,bills,VND,tong_thanh_toan,no_items,false,false,P0
+OCR_BILL_005,G,utility_bill,Hóa đơn có kỳ nhiều ngày,expense,bills,VND,khong_nham_ngay,no_items,false,false,P1
+OCR_BILL_006,G,utility_bill,Hóa đơn có nợ cũ + phát sinh mới,expense,bills,VND,tong_phai_tra,no_items,false,true,P1
+OCR_BILL_007,G,utility_bill,Hóa đơn có tổng phải thanh toán,expense,bills,VND,tong_phai_thanh_toan,no_items,false,false,P0
+OCR_BILL_008,G,utility_bill,Hóa đơn có mã khách hàng,expense,bills,VND,khong_nham_ma_kh,no_items,false,false,P0
+OCR_BILL_009,G,utility_bill,Hóa đơn chụp từ màn hình app,expense,bills,VND,so_tien_dung,no_items,false,false,P1
+OCR_BILL_010,G,utility_bill,Hóa đơn PDF/screenshot nhiều bảng,expense,bills,VND,tong_if_clear,items_empty_ok,false,false,P2
+OCR_HEALTH_001,H,health_receipt,Bill nhà thuốc,expense,health,VND,dong_tong,parse_items,false,false,P0
+OCR_HEALTH_002,H,health_receipt,Hóa đơn khám bệnh/phòng khám,expense,health,VND,dong_tong,parse_items,false,false,P0
+OCR_HEALTH_003,H,health_receipt,Bill mua thuốc nhiều dòng,expense,health,VND,dong_tong,parse_items,false,false,P0
+OCR_HEALTH_004,H,health_receipt,Có BHYT/giảm trừ,expense,health,VND,so_tien_nguoi_dung_phai_tra,parse_items,false,false,P1
+OCR_HEALTH_005,H,health_receipt,Tiền công khám + thuốc,expense,health,VND,dong_tong,service_plus_medicine,false,false,P1
+OCR_HEALTH_006,H,health_receipt,Có số hồ sơ mã bệnh nhân,expense,health,VND,khong_nham_ma_bn,parse_items,false,false,P0
+OCR_HEALTH_007,H,health_receipt,Chữ thuốc khó đọc,expense,health,VND,dong_tong,no_hallucinate_name,false,false,P0
+OCR_HEALTH_008,H,prescription,Ảnh toa thuốc không phải bill,unknown,health,VND,null,no_items,false,true,P0
+OCR_HEALTH_009,H,health_receipt,Bill có VAT,expense,health,VND,khong_chon_vat,parse_items,false,false,P0
+OCR_HEALTH_010,H,health_receipt,Bill mờ,expense,health,VND,best_effort,no_items,false,true,P1
+OCR_TRANSPORT_001,I,transport_receipt,Bill đổ xăng,expense,transport,VND,dong_thanh_tien,no_items,false,false,P0
+OCR_TRANSPORT_002,I,transport_receipt,Bill taxi,expense,transport,VND,dong_tong,no_items,false,false,P0
+OCR_TRANSPORT_003,I,app_screenshot,Grab receipt screenshot,expense,transport,VND,dong_tong,no_items,false,false,P0
+OCR_TRANSPORT_004,I,ticket,Vé xe khách,expense,transport,VND,gia_ve,no_items,false,false,P0
+OCR_TRANSPORT_005,I,parking_ticket,Vé gửi xe,expense,transport,VND,so_tien,no_items,false,false,P0
+OCR_TRANSPORT_006,I,gas_receipt,Bill xăng số lít đơn giá thành tiền,expense,transport,VND,thanh_tien,khong_nham_lit,false,false,P0
+OCR_TRANSPORT_007,I,app_screenshot,Grab có khuyến mãi,expense,transport,VND,so_tien_da_thanh_toan,no_items,false,false,P0
+OCR_TRANSPORT_008,I,taxi_receipt,Taxi có thời gian/km,expense,transport,VND,dong_tong,khong_nham_km,false,false,P0
+OCR_TRANSPORT_009,I,ticket,Vé máy bay,expense,travel,VND,gia_ve,no_items,false,false,P0
+OCR_TRANSPORT_010,I,repair_receipt,Hóa đơn sửa xe,expense,service,VND,dong_tong,parse_items,false,false,P1
+OCR_ECOM_001,J,app_screenshot,Screenshot Shopee đơn hàng,expense,shopping,VND,tong_thanh_toan,parse_items,false,false,P0
+OCR_ECOM_002,J,app_screenshot,Screenshot Lazada/Tiki,expense,shopping,VND,tong_thanh_toan,parse_items,false,false,P0
+OCR_ECOM_003,J,app_screenshot,Tiền hàng + phí ship + voucher,expense,shopping,VND,tong_sau_voucher,parse_items,false,false,P0
+OCR_ECOM_004,J,app_screenshot,Có Đã thanh toán,expense,shopping,VND,tong_thanh_toan,parse_items,false,false,P0
+OCR_ECOM_005,J,app_screenshot,Có Chờ thanh toán,unknown,shopping,VND,best_effort,parse_items,false,true,P0
+OCR_ECOM_006,J,app_screenshot,Có hoàn tiền,income,refund,VND,so_tien_hoan,no_items,false,false,P1
+OCR_ECOM_007,J,app_screenshot,Có nhiều sản phẩm,expense,shopping,VND,tong_thanh_toan,parse_if_clear,false,false,P1
+OCR_ECOM_008,J,product_image,Ảnh sản phẩm + giá chưa mua,unknown,shopping,VND,null,no_items,false,true,P1
+OCR_ECOM_009,J,app_screenshot,COD chưa thanh toán,unknown,shopping,VND,best_effort,no_items,false,true,P1
+OCR_ECOM_010,J,app_screenshot,Mã đơn hàng nhiều số,expense,shopping,VND,khong_nham_ma_don,parse_items,false,false,P0
+OCR_VAT_001,K,vat_invoice,Hóa đơn VAT có Tổng tiền thanh toán,expense,any,VND,tong_tien_thanh_toan,parse_items,false,false,P0
+OCR_VAT_002,K,vat_invoice,Cộng tiền hàng + Thuế GTGT + Tổng,expense,any,VND,tong_cuoi,parse_items,false,false,P0
+OCR_VAT_003,K,vat_invoice,Có MST người bán/mua,expense,any,VND,khong_nham_mst,parse_items,false,false,P0
+OCR_VAT_004,K,vat_invoice,Có số hóa đơn/ký hiệu,expense,any,VND,khong_nham_so_hd,parse_items,false,false,P0
+OCR_VAT_005,K,vat_invoice,Có QR code tra cứu,expense,any,VND,bo_qua_qr,parse_items,false,false,P1
+OCR_VAT_006,K,vat_invoice,Hóa đơn điện tử screenshot dài,expense,any,VND,tong_if_clear,items_partial,false,false,P1
+OCR_VAT_007,K,vat_invoice,Hóa đơn nhiều thuế suất,expense,any,VND,tong_cuoi,parse_items,false,false,P1
+OCR_VAT_008,K,vat_invoice,Hóa đơn có phí/lệ phí,expense,any,VND,dong_tong,parse_items,false,false,P1
+OCR_VAT_009,K,vat_invoice,Hóa đơn bị crop mất bảng hàng hóa,expense,any,VND,tong_if_clear,items_empty_ok,false,false,P1
+OCR_VAT_010,K,vat_invoice,Hóa đơn không có tổng rõ,expense,any,VND,null,items_empty_ok,false,true,P1
+OCR_NON_001,L,menu_image,Ảnh menu quán ăn,unknown,none,VND,null,no_items,false,true,P0
+OCR_NON_002,L,price_list,Ảnh bảng giá,unknown,none,VND,null,no_items,false,true,P0
+OCR_NON_003,L,product_image,Ảnh sản phẩm có tem giá,unknown,none,VND,null,no_items,false,true,P1
+OCR_NON_004,L,photo,Ảnh đồ vật trên bàn,unknown,none,any,null,no_items,false,true,P1
+OCR_NON_005,L,chat_screenshot,Chat mua cái này 100k nhé,unknown,none,VND,null,no_items,false,true,P1
+OCR_NON_006,L,ad_image,Ảnh quảng cáo sale,unknown,none,any,null,no_items,false,true,P1
+OCR_NON_007,L,qr_image,QR không có amount,unknown,none,any,null,no_items,false,true,P0
+OCR_NON_008,L,id_card,Ảnh CCCD/thẻ ngân hàng,unknown,none,any,null,no_items,false,true,P0
+OCR_NON_009,L,handwritten,Ảnh giấy viết tay khó đọc,unknown,none,VND,null,no_items,false,true,P1
+OCR_NON_010,L,blurry_receipt,Ảnh hóa đơn quá mờ,unknown,none,VND,null,no_items,false,true,P0
+OCR_QUALITY_001,M,clear_photo,Ảnh rõ chụp thẳng,expense,any,VND,full_parse,full_parse,false,false,P0
+OCR_QUALITY_002,M,tilted_10deg,Ảnh nghiêng 10 độ,expense,any,VND,full_parse,best_effort,false,false,P1
+OCR_QUALITY_003,M,tilted_30deg,Ảnh nghiêng 30 độ,expense,any,VND,best_effort,no_items,false,true,P1
+OCR_QUALITY_004,M,rotated_90,Ảnh xoay ngang 90 độ,expense,any,VND,best_effort,best_effort,false,true,P2
+OCR_QUALITY_005,M,rotated_180,Ảnh ngược 180 độ,expense,any,VND,best_effort,best_effort,false,true,P2
+OCR_QUALITY_006,M,dark_photo,Ảnh tối,expense,any,VND,best_effort,best_effort,false,true,P1
+OCR_QUALITY_007,M,overexposed,Ảnh quá sáng/lóa,expense,any,VND,null,no_items,false,true,P1
+OCR_QUALITY_008,M,blurry_handheld,Ảnh mờ do rung tay,expense,any,VND,null,no_items,false,true,P0
+OCR_QUALITY_009,M,crumpled,Ảnh bill bị nhàu/gấp,expense,any,VND,best_effort,best_effort,false,false,P2
+OCR_QUALITY_010,M,hand_blocked,Ảnh bị bóng tay che,expense,any,VND,best_effort,best_effort,false,true,P1
+OCR_QUALITY_011,M,cut_right,Ảnh cắt mất bên phải cột tiền,expense,any,VND,null,no_items,false,true,P0
+OCR_QUALITY_012,M,cut_bottom,Ảnh cắt mất phần cuối bill,expense,any,VND,null,no_items,false,true,P0
+OCR_QUALITY_013,M,multi_receipts,Nhiều hóa đơn trong cùng ảnh,expense,any,VND,best_receipt,best_effort,false,true,P2
+OCR_QUALITY_014,M,cluttered_bg,Ảnh nền nhiều vật lộn xộn,expense,any,VND,best_effort,best_effort,false,false,P2
+OCR_QUALITY_015,M,far_shot,Ảnh chụp xa bill dài,expense,any,VND,dong_tong,items_partial,false,false,P1
+OCR_QUALITY_016,M,thermal_faded,Ảnh bill nhiệt chữ phai,expense,any,VND,null,no_items,false,true,P1
+OCR_QUALITY_017,M,watermark,Ảnh có watermark,expense,any,VND,dong_tong,no_watermark_item,false,false,P1
+OCR_QUALITY_018,M,compressed_screenshot,Ảnh screenshot nén/mờ,expense,any,VND,best_effort,best_effort,false,true,P2
+OCR_QUALITY_019,M,finger_on_amount,Ngón tay che số tiền,expense,any,VND,null,no_items,false,true,P0
+OCR_QUALITY_020,M,half_receipt,Chỉ chụp nửa bill,expense,any,VND,null_if_total_missing,items_partial,false,true,P1
+OCR_MONEY_001,N,text,"125000",expense,any,VND,125000,n/a,false,false,P0
+OCR_MONEY_002,N,text,"125.000",expense,any,VND,125000,n/a,false,false,P0
+OCR_MONEY_003,N,text,"125,000",expense,any,VND,125000,n/a,false,false,P0
+OCR_MONEY_004,N,text,"125 000",expense,any,VND,125000,n/a,false,false,P1
+OCR_MONEY_005,N,text,"125.000d",expense,any,VND,125000,n/a,false,false,P0
+OCR_MONEY_006,N,text,"125.000 ₫",expense,any,VND,125000,n/a,false,false,P0
+OCR_MONEY_007,N,text,"125K",expense,any,VND,125000,n/a,false,false,P1
+OCR_MONEY_008,N,text,"1.250.000",expense,any,VND,1250000,n/a,false,false,P0
+OCR_MONEY_009,N,text,"$12.50",expense,any,USD,12.5,n/a,false,false,P0
+OCR_MONEY_010,N,text,"12.50 USD",expense,any,USD,12.5,n/a,false,false,P0
+OCR_MONEY_011,N,text,"USD 1,250.50",expense,any,USD,1250.5,n/a,false,false,P1
+OCR_MONEY_012,N,text,"6,85O,OOO",expense,any,VND,6850000,n/a,false,true,P1
+OCR_MONEY_013,N,text,"S0,000",expense,any,VND,50000,n/a,false,true,P2
+OCR_MONEY_014,N,text,"l8,000",expense,any,VND,18000,n/a,false,true,P2
+OCR_MONEY_015,N,text,"05/06/2026",n/a,n/a,n/a,not_money,n/a,false,false,P0
+OCR_MONEY_016,N,text,"17:45",n/a,n/a,n/a,not_money,n/a,false,false,P0
+OCR_MONEY_017,N,text,"Ban 12",n/a,n/a,n/a,not_money,n/a,false,false,P0
+OCR_MONEY_018,N,text,"Ma GD 827362991",n/a,n/a,n/a,not_money,n/a,false,false,P0
+OCR_MONEY_019,N,text,"So luong 35",n/a,n/a,n/a,not_money,n/a,false,false,P0
+OCR_MONEY_020,N,text,"VAT 10%",n/a,n/a,n/a,not_total,n/a,false,false,P0
+OCR_NOHALL_001,O,blurry_receipt,Ảnh mờ chỉ đọc được số tiền,expense,any,VND,total_if_found,title_blank,false,false,P0
+OCR_NOHALL_002,O,blurry_receipt,Ảnh có item bị che mất tên,expense,any,VND,total_ok,item_name_blank,false,false,P0
+OCR_NOHALL_003,O,clear_receipt,OCR thấy Tổng cộng 100.000,expense,any,VND,100000,no_hallucinate_item,false,false,P0
+OCR_NOHALL_004,O,non_receipt,Ảnh không phải hóa đơn,unknown,none,any,null,no_items,false,true,P0
+OCR_NOHALL_005,O,clear_receipt,Merchant rõ item không đọc được,expense,any,VND,total_ok,item_name_from_merchant,false,false,P0
+OCR_NOHALL_006,O,clear_receipt,Category không chắc,expense,other,VND,total_ok,items_ok,false,false,P0
+OCR_NOHALL_007,O,clear_receipt,Chữ dịch vụ nhưng item là đồ ăn,expense,food_and_drink,VND,total_ok,items_ok,false,false,P1
+OCR_NOHALL_008,O,clear_receipt,Nhiều số tiền ngang nhau,expense,any,VND,candidates_review,items_ok,false,true,P1
+OCR_NOHALL_009,O,blurry_receipt,OCR sai tên sản phẩm thành rác,expense,any,VND,total_ok,name_blank_raw_text,false,false,P1
+OCR_NOHALL_010,O,dark_receipt,Ảnh quá tối,unknown,none,VND,null,no_items,false,true,P0
+OCR_ITEM_ADV_001,P,clear_receipt,Item có số trong tên: 10 trứng gà ta,expense,food_and_drink,VND,dong_tong,10_in_name_not_qty,false,false,P1
+OCR_ITEM_ADV_002,P,clear_receipt,Item có đơn vị: Khô cá 100g,expense,food_and_drink,VND,dong_tong,keep_unit_in_name,false,false,P1
+OCR_ITEM_ADV_003,P,clear_receipt,Item có giá trong tên 80k/con,expense,food_and_drink,VND,dong_tong,parse_unit_price,false,false,P2
+OCR_ITEM_ADV_004,P,clear_receipt,Item wrap 2 dòng,expense,any,VND,dong_tong,merge_lines,false,false,P2
+OCR_ITEM_ADV_005,P,clear_receipt,Item có discount dưới dòng,expense,any,VND,dong_tong,line_total_after_discount,false,false,P1
+OCR_ITEM_ADV_006,P,clear_receipt,Item có combo,expense,food_and_drink,VND,dong_tong,combo_as_item,false,false,P1
+OCR_ITEM_ADV_007,P,clear_receipt,Item quantity decimal 1.5kg,expense,any,VND,dong_tong,qty_decimal,false,false,P2
+OCR_ITEM_ADV_008,P,clear_receipt,Item cân ký 0.35kg x 120.000,expense,food_and_drink,VND,dong_tong,42000_line_total,false,false,P1
+OCR_ITEM_ADV_009,P,clear_receipt,Item không có quantity,expense,any,VND,dong_tong,qty_1_default,false,false,P1
+OCR_ITEM_ADV_010,P,clear_receipt,Item total lệch đơn giá x SL,expense,any,VND,dong_tong,needs_review,false,true,P0
+OCR_ITEM_ADV_011,P,clear_receipt,Item tiếng Anh,expense,any,VND,dong_tong,parse_normal,false,false,P1
+OCR_ITEM_ADV_012,P,clear_receipt,Item tiếng Việt không dấu,expense,any,VND,dong_tong,parse_normal,false,false,P1
+OCR_ITEM_ADV_013,P,clear_receipt,Dòng Tổng tiền hàng,expense,any,VND,dong_tong,skip_not_item,false,false,P0
+OCR_ITEM_ADV_014,P,clear_receipt,Dòng Giảm giá,expense,any,VND,dong_tong,skip_not_item,false,false,P0
+OCR_ITEM_ADV_015,P,ecom_receipt,Dòng Phí giao hàng,expense,shopping,VND,dong_tong,fee_item_optional,false,false,P1
+OCR_CAT_001,Q,clear_receipt,Cơm phở bún nước,expense,food_and_drink,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_002,Q,clear_receipt,Cafe trà sữa bánh,expense,food_and_drink,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_003,Q,clear_receipt,Bia khô cá trứng,expense,food_and_drink,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_004,Q,service_receipt,Thuê sân giờ sân cầu lông,expense,service,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_005,Q,service_receipt,Cắt tóc gội đầu,expense,service,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_006,Q,health_receipt,Thuốc nhà thuốc,expense,health,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_007,Q,transport_receipt,Taxi Grab xăng,expense,transport,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_008,Q,utility_bill,Điện nước internet,expense,bills,VND,tong_thanh_toan,no_items,false,false,P0
+OCR_CAT_009,Q,retail_receipt,Quần áo mỹ phẩm giày,expense,shopping,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_010,Q,travel_receipt,Vé máy bay khách sạn,expense,travel,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_011,Q,bank_sms,Lương thưởng chuyển tiền vào,income,salary,VND,so_tien,no_items,false,false,P0
+OCR_CAT_012,Q,wallet_screenshot,Hoàn tiền refund,income,refund,VND,so_tien,no_items,false,false,P1
+OCR_CAT_013,Q,unclear_receipt,Không đủ thông tin,expense,other,VND,dong_tong,parse_items,false,false,P1
+OCR_CAT_014,Q,clear_receipt,Merchant thể thao item đồ ăn,expense,food_and_drink,VND,dong_tong,parse_items,false,false,P0
+OCR_CAT_015,Q,clear_receipt,Merchant quán ăn item thuê phòng,expense,service,VND,dong_tong,parse_items,false,false,P2
+OCR_TOTAL_001,R,clear_receipt,Chỉ có Tổng cộng,expense,any,VND,tong_cong,n/a,false,false,P0
+OCR_TOTAL_002,R,clear_receipt,Có Tạm tính + Tổng cộng,expense,any,VND,tong_cong_not_tam_tinh,n/a,false,false,P0
+OCR_TOTAL_003,R,clear_receipt,Tiền hàng + VAT + Tổng,expense,any,VND,tong_cuoi,n/a,false,false,P0
+OCR_TOTAL_004,R,clear_receipt,Khách đưa + Tiền thừa,expense,any,VND,khong_chon_2_dong_nay,n/a,false,false,P0
+OCR_TOTAL_005,R,clear_receipt,Có Thanh toán,expense,any,VND,chon_thanh_toan,n/a,false,false,P0
+OCR_TOTAL_006,R,clear_receipt,Có Cần thanh toán,expense,any,VND,chon_can_thanh_toan,n/a,false,false,P0
+OCR_TOTAL_007,R,english_receipt,Có Amount Due,expense,any,VND,chon_amount_due,n/a,false,false,P0
+OCR_TOTAL_008,R,english_receipt,Có Subtotal + Grand Total,expense,any,VND,chon_grand_total,n/a,false,false,P0
+OCR_TOTAL_009,R,clear_receipt,Có Discount,expense,any,VND,sau_discount,n/a,false,false,P0
+OCR_TOTAL_010,R,clear_receipt,Có Deposit/Đặt cọc,expense,any,VND,review_if_ambiguous,n/a,false,true,P1
+OCR_TOTAL_011,R,clear_receipt,Có Còn lại,expense,any,VND,review,n/a,false,true,P1
+OCR_TOTAL_012,R,clear_receipt,Items sum = total line,expense,any,VND,high_confidence,n/a,false,false,P0
+OCR_TOTAL_013,R,clear_receipt,Items sum != total,expense,any,VND,dung_dong_tong,n/a,false,true,P0
+OCR_TOTAL_014,R,clear_receipt,Nhiều số tiền lớn ngang nhau,expense,any,VND,candidates_review,n/a,false,true,P1
+OCR_TOTAL_015,R,blurry_receipt,Dòng tổng bị mờ,expense,any,VND,best_effort,n/a,false,true,P1

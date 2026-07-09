@@ -1,0 +1,28 @@
+{
+  "case_id": "OCR_RETAIL_004",
+  "image_name": "OCR_RETAIL_004_supermarket_cash_change.jpg",
+  "description": "Hóa đơn siêu thị có Tiền khách đưa + Tiền trả lại – không được chọn các dòng này",
+  "expected": {
+    "document_type": "receipt",
+    "transaction_type": "expense",
+    "merchant_name": "Co.opmart",
+    "category_id": "shopping",
+    "currency": "VND",
+    "total_amount": 125000,
+    "items": [
+      { "name": "Mì Hảo Hảo",   "quantity": 2, "unit_price": 4500,  "line_total": 9000  },
+      { "name": "Nước Aqua 500ml","quantity": 3, "unit_price": 7000,  "line_total": 21000 }
+    ],
+    "must_not_hallucinate": true,
+    "needs_user_review": false,
+    "must_not_select": ["Tiền khách đưa", "Tiền trả lại", "Tiền thừa"]
+  },
+  "acceptance": {
+    "total_amount_must_match": true,
+    "currency_must_match": true,
+    "category_must_match": true,
+    "items_min_match_rate": 0.5,
+    "allow_review_flag": true
+  },
+  "notes": "Parser BẮT BUỘC không được chọn dòng Tiền khách đưa (200.000) hoặc Tiền trả lại (75.000) làm tổng."
+}

@@ -1,0 +1,25 @@
+{
+  "case_id": "OCR_BANK_OUT_001",
+  "image_name": "OCR_BANK_OUT_001_vcb_transfer_success.jpg",
+  "description": "Screenshot Vietcombank chuyển khoản thành công 500.000 VND",
+  "expected": {
+    "document_type": "bank_transfer",
+    "transaction_type": "expense",
+    "merchant_name": "VIETCOMBANK",
+    "category_id": "transfer",
+    "currency": "VND",
+    "total_amount": 500000,
+    "items": [],
+    "must_not_hallucinate": true,
+    "needs_user_review": false,
+    "must_not_select": ["Số dư", "Phí giao dịch", "Mã giao dịch"]
+  },
+  "acceptance": {
+    "total_amount_must_match": true,
+    "currency_must_match": true,
+    "category_must_match": false,
+    "items_min_match_rate": 0.0,
+    "allow_review_flag": true
+  },
+  "notes": "Không được chọn số dư tài khoản làm số tiền giao dịch."
+}

@@ -2,6 +2,8 @@ package com.phuongnn14.tuithantai.data
 
 import android.content.Context
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import java.io.Serializable
 
@@ -109,7 +111,24 @@ interface AccountDao {
     suspend fun deleteAccountByName(name: String)
 
     @Query("UPDATE accounts SET balance = balance + :amount WHERE name = :name")
-    suspend fun adjustBalance(name: String, amount: Double)
+    suspend fun adjustBalance(name: String, amount: Double): Int
+}
+
+@Dao
+abstract class WalletTransactionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    protected abstract suspend fun insertTransactionInternal(transaction: TransactionEntity): Long
+
+    @Query("UPDATE accounts SET balance = balance + :amount WHERE name = :name")
+    protected abstract suspend fun adjustBalanceInternal(name: String, amount: Double): Int
+
+    @Transaction
+    open suspend fun insertTransactionAndAdjustBalance(transaction: TransactionEntity) {
+        insertTransactionInternal(transaction)
+        val multiplier = if (transaction.type == "INCOME") 1.0 else -1.0
+        val updatedRows = adjustBalanceInternal(transaction.accountName, transaction.amount * multiplier)
+        check(updatedRows == 1) { "Account not found: ${transaction.accountName}" }
+    }
 }
 
 @Dao
@@ -194,10 +213,22 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun recurringDao(): RecurringTransactionDao
     abstract fun settingDao(): UserSettingDao
+    abstract fun walletTransactionDao(): WalletTransactionDao
 
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Legacy v1 used different tables (expenses/categories). Keep them under
+                // legacy names and create the v2 schema; do not destructively drop user data.
+                renameLegacyTableIfExists(db, "categories", "legacy_categories_v1")
+                renameLegacyTableIfExists(db, "expenses", "legacy_expenses_v1")
+                createV2Tables(db)
+                migrateLegacyExpensesIfPresent(db)
+            }
+        }
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -206,12 +237,137 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "tui_than_tai_db"
                 )
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_1_2)
                 .build()
                 INSTANCE = instance
                 instance
             }
         }
+
+        private fun createV2Tables(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `transactions` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `amount` REAL NOT NULL,
+                    `type` TEXT NOT NULL,
+                    `category` TEXT NOT NULL,
+                    `accountName` TEXT NOT NULL,
+                    `date` INTEGER NOT NULL,
+                    `note` TEXT NOT NULL,
+                    `isSynced` INTEGER NOT NULL,
+                    `imageUri` TEXT
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `accounts` (
+                    `name` TEXT NOT NULL,
+                    `balance` REAL NOT NULL,
+                    `currency` TEXT NOT NULL,
+                    PRIMARY KEY(`name`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `budgets` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `categoryName` TEXT NOT NULL,
+                    `amount` REAL NOT NULL,
+                    `period` TEXT NOT NULL,
+                    `startDate` INTEGER NOT NULL,
+                    `endDate` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `categories` (
+                    `name` TEXT NOT NULL,
+                    `type` TEXT NOT NULL,
+                    `isDefault` INTEGER NOT NULL,
+                    PRIMARY KEY(`name`)
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `recurring_transactions` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `type` TEXT NOT NULL,
+                    `amount` REAL NOT NULL,
+                    `category` TEXT NOT NULL,
+                    `accountName` TEXT NOT NULL,
+                    `cycle` TEXT NOT NULL,
+                    `startDate` INTEGER NOT NULL,
+                    `isEnabled` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `user_settings` (
+                    `key` TEXT NOT NULL,
+                    `value` TEXT NOT NULL,
+                    PRIMARY KEY(`key`)
+                )
+                """.trimIndent()
+            )
+        }
+
+        private fun migrateLegacyExpensesIfPresent(db: SupportSQLiteDatabase) {
+            if (!tableExists(db, "legacy_expenses_v1")) return
+            db.execSQL(
+                """
+                INSERT OR IGNORE INTO `accounts` (`name`, `balance`, `currency`)
+                SELECT DISTINCT
+                    COALESCE(NULLIF(`wallet`, ''), 'Ví cá nhân'),
+                    0.0,
+                    COALESCE(NULLIF(`currency`, ''), 'VND')
+                FROM `legacy_expenses_v1`
+                WHERE `deletedAt` IS NULL
+                """.trimIndent()
+            )
+            db.execSQL(
+                """
+                INSERT INTO `transactions`
+                    (`title`, `amount`, `type`, `category`, `accountName`, `date`, `note`, `isSynced`, `imageUri`)
+                SELECT
+                    COALESCE(NULLIF(`title`, ''), 'Giao dịch cũ'),
+                    CAST(`amount` AS REAL),
+                    'EXPENSE',
+                    COALESCE(NULLIF(`categoryId`, ''), 'Khác'),
+                    COALESCE(NULLIF(`wallet`, ''), 'Ví cá nhân'),
+                    `spentAt`,
+                    COALESCE(`note`, ''),
+                    CASE WHEN `syncStatus` = 'Synced' THEN 1 ELSE 0 END,
+                    `receiptPath`
+                FROM `legacy_expenses_v1`
+                WHERE `deletedAt` IS NULL
+                """.trimIndent()
+            )
+        }
+
+        private fun renameLegacyTableIfExists(
+            db: SupportSQLiteDatabase,
+            oldName: String,
+            legacyName: String
+        ) {
+            if (tableExists(db, oldName) && !tableExists(db, legacyName)) {
+                db.execSQL("ALTER TABLE `$oldName` RENAME TO `$legacyName`")
+            }
+        }
+
+        private fun tableExists(db: SupportSQLiteDatabase, tableName: String): Boolean =
+            db.query(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+                arrayOf(tableName)
+            ).use { cursor -> cursor.moveToFirst() }
     }
 }
 
@@ -226,9 +382,7 @@ class LuckyWalletRepository(private val db: AppDatabase) {
     val recurringTransactions: Flow<List<RecurringTransactionEntity>> = db.recurringDao().getAllRecurringFlow()
 
     suspend fun insertTransaction(transaction: TransactionEntity) {
-        db.transactionDao().insertTransaction(transaction)
-        val multiplier = if (transaction.type == "INCOME") 1.0 else -1.0
-        db.accountDao().adjustBalance(transaction.accountName, transaction.amount * multiplier)
+        db.walletTransactionDao().insertTransactionAndAdjustBalance(transaction)
     }
 
     suspend fun deleteTransaction(transaction: TransactionEntity) {

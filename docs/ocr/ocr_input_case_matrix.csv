@@ -1,0 +1,26 @@
+case_id,case_name,input_description,expected_output,common_traps
+OCR-DOC-001,POS giấy - quán ăn/cafe,"Ảnh hóa đơn in nhiệt, có tên quán, bàn, giờ vào/giờ ra, mặt hàng, SL, đơn giá, tổng","merchant, date/time, items, total_amount, category=food_and_drink",Đừng chọn giờ/bàn làm tiền; ưu tiên Tổng cộng/Tổng thanh toán
+OCR-DOC-002,Hóa đơn tạm tính nhà hàng,"Có tiêu đề HÓA ĐƠN TẠM TÍNH, có Tiền hàng, Phí dịch vụ/VAT, Tổng tạm tính","items, subtotal, service_fee/tax nếu có, final total",Nếu chỉ có Tổng tạm tính cuối bill thì chọn làm total
+OCR-DOC-003,Quán bia/đồ nhắm tại sân thể thao,"Merchant là sân thể thao, item là bia, khô cá, trứng, đồ ăn","category=food_and_drink, merchant giữ nguyên",Không phân loại service chỉ vì merchant có chữ sân
+OCR-DOC-004,Hóa đơn thuê sân/dịch vụ thể thao,"Item có thuê sân, giờ sân, phí sân, pickleball, cầu lông",category=service hoặc entertainment,Line item quyết định category
+OCR-DOC-005,Siêu thị/minimart dài,"Nhiều item, mã hàng, VAT, khuyến mại, tổng, khách đưa, tiền thừa","items, discounts, tax, total_amount",Không chọn khách đưa/tiền thừa; line items có thể không cần 100%
+OCR-DOC-006,Nhà thuốc,"Tên thuốc, số lượng, đơn vị, total",category=health,Tên thuốc khó đọc thì để name rỗng hoặc needs_review
+OCR-DOC-007,Cây xăng,"Lít, đơn giá/lít, thành tiền, mã trụ bơm","category=transport, item=fuel",Không nhầm số lít với tiền
+OCR-DOC-008,Taxi/Grab/Be/Gojek receipt,"Điểm đi/đến, cước, phí, khuyến mại, tổng","category=transport, total_amount",Không parse địa chỉ thành item
+OCR-DOC-009,Vé gửi xe/parking,"Biển số, giờ vào/ra, phí gửi xe",category=transport hoặc service,Không nhầm biển số/giờ thành tiền
+OCR-DOC-010,Hóa đơn điện/nước/internet/điện thoại,"Kỳ cước, mã KH, tiền trước thuế, VAT, tổng thanh toán","category=bills, total_amount",Không chọn mã khách hàng/mã hóa đơn làm tiền
+OCR-DOC-011,Hóa đơn điện tử Việt Nam - ảnh/PDF screenshot,"Có ký hiệu, số hóa đơn, MST, tên hàng, VAT, tổng tiền thanh toán, QR/mã CQT","invoice_number, merchant, tax, total_amount, items nếu có",Không cần lưu MST/số hóa đơn vào title; tổng thanh toán là total
+OCR-DOC-012,Màn hình chuyển khoản thành công - tiền ra,"Có số tiền, người nhận, ngân hàng, nội dung, mã giao dịch, thời gian","transaction_type=expense, amount, counterparty, note",Không có line items; title có thể là nội dung CK nếu rõ
+OCR-DOC-013,Màn hình nhận tiền - tiền vào,"Có +amount hoặc “nhận tiền thành công”, người gửi, nội dung","transaction_type=income, amount, counterparty, note",Không gán expense khi có dấu +/nhận tiền
+OCR-DOC-014,Ví điện tử Momo/ZaloPay/VNPay,"Thanh toán thành công, merchant, amount, mã GD","expense, merchant, amount",Không nhầm số điện thoại/mã GD với amount
+OCR-DOC-015,QR payment/order checkout screenshot,"Có merchant, amount, nội dung thanh toán, chưa chắc đã thành công","amount candidate, status nếu có",Nếu chưa có trạng thái thành công thì needs_review
+OCR-DOC-016,E-commerce order Shopee/Tiki/Lazada,"Tổng tiền hàng, phí ship, voucher, thanh toán, nhiều item","shopping, items, shipping_fee, discount, total_amount",Chọn thành tiền thanh toán cuối cùng
+OCR-DOC-017,Phiếu thu/biên lai dịch vụ,"Có người nộp, nội dung thu, số tiền, chữ ký",expense/service hoặc income tùy ngữ cảnh,"Nếu là phiếu thu của người bán, với user có thể là expense"
+OCR-DOC-018,Hóa đơn khách sạn/du lịch,"Phòng, đêm, thuế, phí dịch vụ, tổng","travel, service, total_amount",Không nhầm số phòng/số đêm với tiền
+OCR-DOC-019,Phiếu order bếp/bar chưa thanh toán,Có món và số lượng nhưng không có tổng hoặc chưa thanh toán,"items maybe, total=null, needs_review",Không tự lưu nếu chưa có total
+OCR-DOC-020,Ảnh sản phẩm/menu/bảng giá,"Chỉ có tên món và giá, không phải giao dịch đã xảy ra","document_type=not_receipt, total=null",Không tạo giao dịch tự động
+OCR-DOC-021,Tin nhắn SMS ngân hàng,"Text screenshot có số tiền, biến động số dư, nội dung","income/expense, amount, balance nếu có",Phân biệt biến động với số dư cuối
+OCR-DOC-022,Sao kê/bảng danh sách nhiều giao dịch,"Nhiều dòng debit/credit, số dư","document_type=statement, needs_review",Không gộp toàn bộ thành 1 giao dịch nếu user không chọn dòng
+OCR-DOC-023,Hóa đơn viết tay/chợ truyền thống,"Tên món viết tay, cộng tay, số tiền","total nếu rõ, items confidence thấp",Không hallucinate item name
+OCR-DOC-024,Biên lai y tế/phòng khám,"Dịch vụ khám, thuốc, xét nghiệm, tổng","health, items/service, total",Phân loại health
+OCR-DOC-025,Ảnh không liên quan,"Cảnh vật, người, vật phẩm, không text tiền","not_receipt, no transaction","Trả total=null, title="""", needs_review=true"

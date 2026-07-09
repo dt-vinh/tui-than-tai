@@ -82,7 +82,10 @@ class OcrAnalyzer {
             dateTime = extractDateTime(lines),
             paymentMethod = extractPaymentMethod(normFull),
             confidence = confidence,
-            needsUserReview = forceReview || confidence < 0.7 || totalAmount == null || reviewFields.isNotEmpty(),
+            needsUserReview = forceReview ||
+                confidence < OcrThresholds.NEEDS_REVIEW.toDouble() ||
+                totalAmount == null ||
+                reviewFields.isNotEmpty(),
             reviewFields = reviewFields,
             reason = buildReason(documentType, totalAmount, candidates)
         )

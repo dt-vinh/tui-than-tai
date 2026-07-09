@@ -1,0 +1,21 @@
+{
+  "image_id": "bank_transfer_out_001",
+  "document_type": "payment_confirmation",
+  "expected": {
+    "transaction_type": "expense",
+    "category_id": "transfer",
+    "currency": "VND",
+    "fields": [
+      "amount",
+      "beneficiary_name",
+      "bank_name",
+      "transaction_time",
+      "transaction_id",
+      "note"
+    ]
+  },
+  "must_not": [
+    "Do not create line items",
+    "Do not confuse account number or transaction id with amount"
+  ]
+}

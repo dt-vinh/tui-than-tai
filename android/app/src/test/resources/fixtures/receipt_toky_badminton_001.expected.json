@@ -1,0 +1,31 @@
+{
+  "image_id": "receipt_toky_badminton_001",
+  "document_type": "temporary_receipt",
+  "expected": {
+    "merchant_name": "Sân cầu lông & pickleball Tô Ký",
+    "transaction_type": "expense",
+    "category_id": "food_and_drink",
+    "currency": "VND",
+    "total_amount": 6850000,
+    "items": [
+      {
+        "name": "Kem/đồ uống 250ml",
+        "quantity": 255,
+        "unit_price": 20000,
+        "line_total": 5100000,
+        "allow_fuzzy_name": true
+      },
+      {
+        "name": "Bia chai Tuborg chai xanh",
+        "quantity": 35,
+        "unit_price": 18000,
+        "line_total": 630000
+      }
+    ]
+  },
+  "must_not": [
+    "Do not classify as service only because merchant is a sport venue",
+    "Do not fill unclear product name with Không xác định/Khác/Hàng hóa"
+  ],
+  "review_expected": true
+}

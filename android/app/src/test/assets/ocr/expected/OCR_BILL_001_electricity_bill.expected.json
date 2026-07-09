@@ -1,0 +1,25 @@
+{
+  "case_id": "OCR_BILL_001",
+  "image_name": "OCR_BILL_001_electricity_bill.jpg",
+  "description": "Hóa đơn tiền điện EVN – tổng thanh toán 495.000 VND",
+  "expected": {
+    "document_type": "receipt",
+    "transaction_type": "expense",
+    "merchant_name": "CÔNG TY ĐIỆN LỰC TP.HCM",
+    "category_id": "bills",
+    "currency": "VND",
+    "total_amount": 495000,
+    "items": [],
+    "must_not_hallucinate": true,
+    "needs_user_review": false,
+    "must_not_select": ["Số điện sử dụng (kWh)", "Mã khách hàng", "Chỉ số điện"]
+  },
+  "acceptance": {
+    "total_amount_must_match": true,
+    "currency_must_match": true,
+    "category_must_match": true,
+    "items_min_match_rate": 0.0,
+    "allow_review_flag": true
+  },
+  "notes": "Số kWh tiêu thụ không phải số tiền. Mã khách hàng không phải số tiền."
+}

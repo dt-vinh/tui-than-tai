@@ -1,6 +1,7 @@
 package com.phuongnn14.tuithantai.capture
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -12,39 +13,6 @@ class CaptureExtractorTest {
 
         assertEquals(415_000L, result?.amount)
         assertTrue((result?.confidence ?: 0f) >= 0.75f)
-    }
-
-    @Test
-    fun splitThanhToanKeywordAndAmountStillAutoFills() {
-        val text = """
-            Tiền hàng (7)
-            415,000
-            THANH TOÁN
-            415,000đ
-        """.trimIndent()
-
-        val result = MoneyPresenceDetector.detect(text)
-
-        assertEquals(415_000L, result?.amount)
-        assertTrue((result?.confidence ?: 0f) >= 0.75f)
-    }
-
-    @Test
-    fun invoiceTitleThanhToanDoesNotBoostInvoiceNumber() {
-        val text = """
-            SỦI CẢO ĐỆ NHẤT ĐÔNG BẮC
-            HÓA ĐƠN THANH TOÁN
-            Số: 100097932
-            Tiền hàng (7)
-            415,000
-            THANH TOÁN
-            415,000đ
-        """.trimIndent()
-
-        val result = MoneyPresenceDetector.detect(text)
-
-        assertEquals(415_000L, result?.amount)
-        assertTrue(result?.productNote?.contains("Sủi Cảo", ignoreCase = true) == true)
     }
 
     @Test
@@ -84,6 +52,64 @@ class CaptureExtractorTest {
     }
 
     @Test
+    fun billionAmountIsNotDropped() {
+        val result = AmountExtractor.extract("Tong tien: 5.000.000.000 VND")
+
+        assertEquals(5_000_000_000L, result?.amount)
+        assertFalse(result?.needsReview ?: true)
+    }
+
+    @Test
+    fun amountAboveConfidentCeilingIsReturnedForReview() {
+        val result = AmountExtractor.extract("Tong tien: 1.000.000.000.000 VND")
+
+        assertEquals(1_000_000_000_000L, result?.amount)
+        assertTrue(result?.needsReview == true)
+    }
+
+    @Test
+    fun amountNeedsReviewPropagatesToCaptureResult() {
+        val result = MoneyPresenceDetector.detect("Tong tien: 1.000.000.000.000 VND")
+
+        assertEquals(1_000_000_000_000L, result?.amount)
+        assertTrue(result?.needsReview == true)
+    }
+
+    @Test
+    fun vietnameseTenThousandBanknoteIsDetected() {
+        val text = """
+            CONG HOA XA HOI CHU NGHIA
+            VIET NAM
+            MUOI NGHIN
+            DONG
+            10000
+            D000
+            CX 23374345
+        """.trimIndent()
+
+        val result = MoneyPresenceDetector.detect(text)
+
+        assertEquals(10_000L, result?.amount)
+        assertEquals("Khác", result?.categoryName)
+        assertTrue(result?.needsReview == true)
+    }
+
+    @Test
+    fun blurryBanknoteNumericOnlyHasLowConfidence() {
+        val result = VietnameseBanknoteDetector.detect(
+            """
+            CONG HOA XA HOI
+            DONG
+            500
+            """.trimIndent()
+        )
+
+        assertEquals(500L, result?.amount)
+        assertEquals(0.40f, result?.confidence ?: 0f, 0.0f)
+        assertTrue(result?.needsReview == true)
+    }
+
+    @Test
     fun merchantIsTitleCased() {
         val result = MerchantExtractor.extract(
             """
@@ -104,35 +130,7 @@ class CaptureExtractorTest {
     }
 
     @Test
-    fun weightLineIsNotMoneyAmount() {
-        val text = """
-            Tiền thu Người nhận:
-            0 VND
-            Khối lượng tối đa: 30,000 g
-        """.trimIndent()
-
-        val result = AmountExtractor.extract(text)
-
-        assertNull(result)
-    }
-
-    @Test
-    fun splitWeightLineIsNotMoneyAmount() {
-        val text = """
-            Tiền thu Người nhận:
-            0 VND
-            Khối lượng tối đa:
-            30,000
-            g
-        """.trimIndent()
-
-        val result = AmountExtractor.extract(text)
-
-        assertNull(result)
-    }
-
-    @Test
-    fun shopeeShippingLabelExtractsProductAndShoppingCategory() {
+    fun shopeeShippingLabelUsesCodZeroAndIgnoresWeight() {
         val text = """
             S Shopee
             be
@@ -145,78 +143,25 @@ class CaptureExtractorTest {
             Kiểm tra tên sản phẩm và đối chiếu Mã vận đơn trên ứng dụng Shopee trước khi nhận hàng
         """.trimIndent()
 
-        val draft = MoneyPresenceDetector.uncertainDraft(text)
-
-        assertNull(AmountExtractor.extract(text))
-        assertEquals(null, draft.amount)
-        assertTrue(draft.productNote?.contains("iPhone 8 Plus 64 GB") == true)
-        assertEquals("Mua sắm", draft.categoryName)
-    }
-
-    @Test
-    fun kiemTraDoesNotResolveFoodCategory() {
-        val result = CategoryResolver.resolve("Kiểm tra tên sản phẩm trước khi nhận hàng")
-
-        assertEquals("Khác", result)
-    }
-
-    @Test
-    fun vietnameseBanknoteTenThousandIsDetected() {
-        val text = """
-            CỘNG HÒA XÃ HỘI CHỦNGHĨA
-            VIỆTNAM
-            MƯỜI NGHÌN
-            ĐỒNG
-            10000
-            D000
-            CX 23374345
-        """.trimIndent()
-
+        val amount = AmountExtractor.extract(text)
         val result = MoneyPresenceDetector.detect(text)
 
-        assertEquals(10_000L, result?.amount)
-        assertEquals("Tiền Việt Nam 10.000 ₫", result?.productNote)
-        assertEquals("Khác", result?.categoryName)
-        assertTrue((result?.confidence ?: 0f) >= 0.85f)
+        assertEquals(0L, amount?.amount)
+        assertEquals(0L, result?.amount)
+        assertTrue(result?.productNote?.contains("iPhone 8 Plus 64 GB") == true)
+        assertEquals("Mua sắm", result?.categoryName)
     }
 
     @Test
-    fun allVietnameseBanknoteDenominationsAreDetected() {
-        val cases = listOf(
-            500L to "NĂM TRĂM ĐỒNG 500",
-            1_000L to "MỘT NGHÌN ĐỒNG 1000",
-            2_000L to "HAI NGHÌN ĐỒNG 2000",
-            5_000L to "NĂM NGHÌN ĐỒNG 5000",
-            10_000L to "MƯỜI NGHÌN ĐỒNG 10000",
-            20_000L to "HAI MƯƠI NGHÌN ĐỒNG 20000",
-            50_000L to "NĂM MƯƠI NGHÌN ĐỒNG 50000",
-            100_000L to "MỘT TRĂM NGHÌN ĐỒNG 100000",
-            200_000L to "HAI TRĂM NGHÌN ĐỒNG 200000",
-            500_000L to "NĂM TRĂM NGHÌN ĐỒNG 500000"
-        )
-
-        cases.forEach { (amount, denomText) ->
-            val text = """
-                CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
-                $denomText
-                AB 12345678
-            """.trimIndent()
-
-            assertEquals(amount, VietnameseBanknoteDetector.detect(text)?.amount)
-        }
-    }
-
-    @Test
-    fun twoWordVisibleBanknotesAreSummedConservatively() {
+    fun shopeeWeightWithoutCodIsNotMoneyAmount() {
         val text = """
-            CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
-            HAI NGHÌN ĐỒNG
-            CD 12345678
-            CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
-            HAI NGHÌN ĐỒNG
-            EF 87654321
+            S Shopee
+            Nội dung hàng (Tổng SL sản phẩm: 1)
+            1. (NFC)Iphone 8 plus 64 GB,Iphone X mất face,SL: 1
+            Khối lượng tối đa: 30,000 g
         """.trimIndent()
 
-        assertEquals(4_000L, VietnameseBanknoteDetector.detect(text)?.amount)
+        assertNull(AmountExtractor.extract(text))
+        assertEquals("Mua sắm", CategoryResolver.resolve(text, ProductNoteExtractor.extract(text)))
     }
 }

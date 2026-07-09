@@ -1,0 +1,24 @@
+{
+  "case_id": "OCR_NON_001",
+  "image_name": "OCR_NON_001_menu_not_receipt.jpg",
+  "description": "Ảnh menu quán ăn – không phải hóa đơn thanh toán",
+  "expected": {
+    "document_type": "non_receipt",
+    "transaction_type": null,
+    "merchant_name": "",
+    "category_id": null,
+    "currency": "VND",
+    "total_amount": null,
+    "items": [],
+    "must_not_hallucinate": true,
+    "needs_user_review": true
+  },
+  "acceptance": {
+    "total_amount_must_match": false,
+    "currency_must_match": false,
+    "category_must_match": false,
+    "items_min_match_rate": 0.0,
+    "allow_review_flag": true
+  },
+  "notes": "Parser không phân biệt được menu vs receipt thuần text. Yêu cầu: không tạo giao dịch tự động, không hallucinate tên món là đã mua."
+}

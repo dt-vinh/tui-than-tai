@@ -29,7 +29,7 @@ object ProductNoteExtractor {
         lines.forEachIndexed { index, line ->
             val norm = AmountExtractor.normalize(line)
             if (itemSectionKeywords.any { norm.contains(it) }) {
-                cleanLine(line.substringAfter(":", "").substringAfter(")", ""))?.let { return it }
+                cleanLine(line.substringAfter(":", "").substringAfter(")"))?.let { return it }
                 lines.drop(index + 1).take(4).forEach { next ->
                     cleanLine(next)?.let { return it }
                 }
