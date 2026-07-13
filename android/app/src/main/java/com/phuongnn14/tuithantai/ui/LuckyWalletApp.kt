@@ -199,11 +199,22 @@ fun LuckyWalletApp(viewModel: LuckyWalletViewModel = viewModel()) {
     val navController = rememberNavController()
     val context = LocalContext.current
     val language by viewModel.currentLanguage.collectAsStateWithLifecycle()
+    val hasChosenLanguage by viewModel.hasChosenLanguage.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.syncMessage.collect { msg ->
             android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // Lần đầu mở app: hiện màn chọn ngôn ngữ trước khi vào app
+    if (!hasChosenLanguage) {
+        LanguageSelectionScreen(
+            currentLanguage = language,
+            onPreview = { viewModel.changeLanguage(it) },
+            onConfirm = { viewModel.chooseLanguage(it) }
+        )
+        return
     }
 
     Scaffold(
@@ -222,6 +233,95 @@ fun LuckyWalletApp(viewModel: LuckyWalletViewModel = viewModel()) {
             composable("reports") { ReportsScreen(viewModel = viewModel, language = language) }
             composable("tools") { ToolsScreen(viewModel = viewModel, language = language) }
             composable("settings") { SettingsScreen(viewModel = viewModel, language = language) }
+        }
+    }
+}
+
+// ─── Language Selection (lần đầu mở app) ──────────────────────────────────────
+
+@Composable
+fun LanguageSelectionScreen(
+    currentLanguage: AppLanguage,
+    onPreview: (AppLanguage) -> Unit,
+    onConfirm: (AppLanguage) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BrandCanvas),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("🌐", fontSize = 56.sp)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                Localization.getString("choose_language", currentLanguage),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = BrandInk,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                Localization.getString("choose_language_subtitle", currentLanguage),
+                style = MaterialTheme.typography.bodyMedium,
+                color = BrandInk.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(28.dp))
+
+            AppLanguageOrder.forEach { lang ->
+                val selected = lang == currentLanguage
+                ElevatedCard(
+                    onClick = { onPreview(lang) },
+                    shape = AppShape,
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = if (selected) BrandGoldSoft else BrandSurface
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(18.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(lang.flagEmoji(), fontSize = 28.sp)
+                        Spacer(Modifier.width(16.dp))
+                        Text(
+                            lang.displayName(),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            color = BrandInk,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (selected) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = BrandGold)
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(28.dp))
+            Button(
+                onClick = { onConfirm(currentLanguage) },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = AppShape,
+                colors = ButtonDefaults.buttonColors(containerColor = BrandGold)
+            ) {
+                Text(
+                    Localization.getString("continue_btn", currentLanguage),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
         }
     }
 }
@@ -1760,19 +1860,29 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
             AppCard(containerColor = BrandSurface) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(Localization.getString("language", language), fontWeight = FontWeight.Bold, color = BrandInk)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppLanguageOrder.forEach { lang ->
+                        val selected = lang == language
                         ElevatedCard(
-                            onClick = { if (language != AppLanguage.VIETNAMESE) langToSwitchTo = AppLanguage.VIETNAMESE },
+                            onClick = { if (lang != language) langToSwitchTo = lang },
                             shape = AppShape,
-                            colors = CardDefaults.elevatedCardColors(containerColor = if (language == AppLanguage.VIETNAMESE) BrandGoldSoft else BrandSurfaceAlt),
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Tiếng Việt", modifier = Modifier.padding(16.dp).fillMaxWidth(), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) }
-                        ElevatedCard(
-                            onClick = { if (language != AppLanguage.ENGLISH) langToSwitchTo = AppLanguage.ENGLISH },
-                            shape = AppShape,
-                            colors = CardDefaults.elevatedCardColors(containerColor = if (language == AppLanguage.ENGLISH) BrandGoldSoft else BrandSurfaceAlt),
-                            modifier = Modifier.weight(1f)
-                        ) { Text("English", modifier = Modifier.padding(16.dp).fillMaxWidth(), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) }
+                            colors = CardDefaults.elevatedCardColors(containerColor = if (selected) BrandGoldSoft else BrandSurfaceAlt),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(lang.flagEmoji(), fontSize = 22.sp)
+                                Spacer(Modifier.width(14.dp))
+                                Text(
+                                    lang.displayName(),
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    color = BrandInk,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (selected) Icon(Icons.Default.CheckCircle, contentDescription = null, tint = BrandGold)
+                            }
+                        }
                     }
                 }
             }
@@ -1800,10 +1910,10 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
     langToSwitchTo?.let { targetLang ->
         AlertDialog(
             onDismissRequest = { langToSwitchTo = null },
-            title = { Text(if (targetLang == AppLanguage.VIETNAMESE) "Xác nhận chuyển đổi" else "Confirm selection") },
-            text = { Text(if (targetLang == AppLanguage.VIETNAMESE) "Bạn có chắc chắn muốn chuyển ngôn ngữ sang Tiếng Việt?" else "Are you sure you want to change language to English?") },
-            confirmButton = { Button(onClick = { viewModel.changeLanguage(targetLang); langToSwitchTo = null }) { Text(Localization.getString("confirm", language)) } },
-            dismissButton = { TextButton(onClick = { langToSwitchTo = null }) { Text(Localization.getString("cancel", language)) } }
+            title = { Text(Localization.getString("change_lang_confirm", targetLang)) },
+            text = { Text(Localization.getString("change_lang_body", targetLang)) },
+            confirmButton = { Button(onClick = { viewModel.changeLanguage(targetLang); langToSwitchTo = null }) { Text(Localization.getString("confirm", targetLang)) } },
+            dismissButton = { TextButton(onClick = { langToSwitchTo = null }) { Text(Localization.getString("cancel", targetLang)) } }
         )
     }
 }

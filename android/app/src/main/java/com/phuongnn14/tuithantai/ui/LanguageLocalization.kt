@@ -5,7 +5,33 @@ import androidx.compose.runtime.staticCompositionLocalOf
 
 enum class AppLanguage {
     VIETNAMESE,
-    ENGLISH
+    ENGLISH,
+    GERMAN,
+    HINDI
+}
+
+/** Thứ tự hiển thị ngôn ngữ: Anh → Việt → Đức → Ấn Độ (Hindi). */
+val AppLanguageOrder = listOf(
+    AppLanguage.ENGLISH,
+    AppLanguage.VIETNAMESE,
+    AppLanguage.GERMAN,
+    AppLanguage.HINDI
+)
+
+/** Tên hiển thị bản địa của mỗi ngôn ngữ. */
+fun AppLanguage.displayName(): String = when (this) {
+    AppLanguage.ENGLISH -> "English"
+    AppLanguage.VIETNAMESE -> "Tiếng Việt"
+    AppLanguage.GERMAN -> "Deutsch"
+    AppLanguage.HINDI -> "हिन्दी"
+}
+
+/** Cờ quốc gia đại diện cho ngôn ngữ. */
+fun AppLanguage.flagEmoji(): String = when (this) {
+    AppLanguage.ENGLISH -> "🇬🇧"
+    AppLanguage.VIETNAMESE -> "🇻🇳"
+    AppLanguage.GERMAN -> "🇩🇪"
+    AppLanguage.HINDI -> "🇮🇳"
 }
 
 object Localization {
@@ -164,7 +190,11 @@ object Localization {
         "ocr_draft_label" to "Duyệt thông tin quét hóa đơn (Bản nháp)",
         "take_photo" to "Chụp ảnh hóa đơn",
         "mock_select_receipt_label" to "Chọn hóa đơn mẫu để thử quét AI:",
-        "pick_from_gallery" to "Chọn từ thư viện"
+        "pick_from_gallery" to "Chọn từ thư viện",
+
+        "choose_language" to "Chọn ngôn ngữ",
+        "choose_language_subtitle" to "Chọn ngôn ngữ bạn muốn sử dụng",
+        "continue_btn" to "Tiếp tục"
     )
 
     private val en = mapOf(
@@ -322,15 +352,344 @@ object Localization {
         "ocr_draft_label" to "Review Scanned Draft",
         "take_photo" to "Take Photo",
         "mock_select_receipt_label" to "Select sample receipt to test AI parsing:",
-        "pick_from_gallery" to "Pick from Gallery"
+        "pick_from_gallery" to "Pick from Gallery",
+
+        "choose_language" to "Choose Language",
+        "choose_language_subtitle" to "Select your preferred language",
+        "continue_btn" to "Continue"
+    )
+
+    private val de = mapOf(
+        "app_name" to "Lucky Wallet",
+        "home" to "Startseite",
+        "history" to "Verlauf",
+        "reports" to "Berichte",
+        "tools" to "Werkzeuge",
+        "settings" to "Einstellungen",
+
+        "current_balance" to "Verfügbares Guthaben",
+        "income" to "Einnahmen",
+        "expense" to "Ausgaben",
+        "recent_transactions" to "Letzte Transaktionen",
+        "no_transactions" to "Noch keine Transaktionen erfasst.",
+        "quick_actions" to "Schnellaktionen",
+        "scan_receipt" to "KI-Scan",
+        "add_expense" to "Ausgabe",
+        "add_income" to "Einnahme",
+
+        "all" to "Alle",
+        "waiting_sync" to "Warten auf Sync",
+        "sync_now" to "Jetzt synchronisieren",
+        "sync_status" to "Sync-Status",
+        "synced" to "Synchronisiert",
+        "pending" to "Ausstehend",
+        "transaction_detail" to "Transaktionsdetails",
+        "delete_confirm" to "Möchten Sie diese Transaktion wirklich löschen?",
+        "delete" to "Löschen",
+        "edit" to "Bearbeiten",
+
+        "amount" to "Betrag",
+        "title" to "Titel/Artikel",
+        "category" to "Kategorie",
+        "account" to "Konto",
+        "date" to "Datum",
+        "note" to "Notiz (Optional)",
+        "save" to "Speichern",
+        "fill_all_fields" to "Bitte füllen Sie alle Felder aus.",
+        "input_title_error" to "Bitte geben Sie einen Titel ein.",
+        "input_title_income_error" to "Bitte geben Sie einen Einnahmetitel ein.",
+
+        "income_expense_chart" to "Einnahmen/Ausgaben-Diagramm",
+        "advanced_sync_options" to "[+] Erweiterte Optionen (PC-Sync)",
+        "hide_advanced_sync" to "[-] Erweiterte Optionen ausblenden",
+
+        "Ăn uống" to "Essen & Trinken",
+        "Di chuyển" to "Transport",
+        "Mua sắm" to "Einkaufen",
+        "Giải trí" to "Unterhaltung",
+        "Nhà ở" to "Wohnen",
+        "Y tế" to "Gesundheit",
+        "Khác" to "Sonstiges",
+        "Lương" to "Gehalt",
+        "Thưởng" to "Bonus",
+        "Đầu tư" to "Investition",
+        "Quà tặng" to "Geschenk",
+
+        "Tiền mặt" to "Bargeld",
+        "Tài khoản ngân hàng" to "Bankkonto",
+        "Ví MoMo" to "MoMo-Wallet",
+
+        "report_dashboard" to "Finanzanalyse-Dashboard",
+        "time_filter" to "Zeitraum wählen",
+        "today" to "Heute",
+        "this_week" to "Diese Woche",
+        "this_month" to "Dieser Monat",
+        "this_year" to "Dieses Jahr",
+        "custom" to "Benutzerdefiniert",
+        "remaining" to "Verbleibend",
+        "category_stats" to "Aufschlüsselung nach Kategorie",
+
+        "account_title" to "Konten verwalten",
+        "add_account" to "Neues Konto hinzufügen",
+        "edit_account" to "Konto bearbeiten",
+        "account_name" to "Kontoname (z.B. Bargeld)",
+        "initial_balance" to "Anfangssaldo",
+        "default_currency" to "Standardwährung",
+        "edit_category" to "Kategorie bearbeiten",
+        "save_changes" to "Änderungen speichern",
+        "delete_account_confirm" to "Möchten Sie dieses Konto wirklich löschen? Vorhandene Transaktionen bleiben als Verlauf erhalten.",
+        "delete_category_confirm" to "Möchten Sie diese Kategorie wirklich löschen?",
+
+        "budget_title" to "Budgets & Limits",
+        "add_budget" to "Budgetlimit hinzufügen",
+        "budget_name" to "Budgetname",
+        "budget_amount" to "Budgetgrenze",
+        "budget_period" to "Budgetzyklus",
+        "weekly" to "Wöchentlich",
+        "monthly" to "Monatlich",
+        "start_date" to "Startdatum",
+        "end_date" to "Enddatum",
+
+        "category_title" to "Kategorien verwalten",
+        "add_category" to "Neue Kategorie hinzufügen",
+        "expense_categories" to "Ausgabenkategorien",
+        "income_categories" to "Einnahmenkategorien",
+
+        "recurring_title" to "Automatische wiederkehrende Transaktionen",
+        "add_recurring" to "Wiederkehrende Regel hinzufügen",
+        "recurring_name" to "Zeitplanname",
+        "cycle_type" to "Intervallhäufigkeit",
+        "daily" to "Täglich",
+        "monthly_cycle" to "Monatlich",
+        "yearly" to "Jährlich",
+
+        "split_bill_title" to "Rechnungen mit Freunden teilen",
+        "add_split" to "Geteilte Rechnung erstellen",
+        "participants" to "Teilnehmerliste (durch Kommas getrennt)",
+        "payer" to "Zahler",
+        "total_amount" to "Gesamtbetrag",
+        "share_per_person" to "Anteil pro Person",
+        "settlements" to "Vorgeschlagene Schuldenbegleichung",
+        "owes" to "schuldet",
+        "to" to "an",
+
+        "backup_title" to "Sichern & Wiederherstellen",
+        "backup_section" to "Google Drive",
+        "backup_now" to "Jetzt sichern",
+        "restore_now" to "Von Drive wiederherstellen",
+        "auto_backup" to "Automatische Sicherung täglich um 20:00 Uhr",
+        "last_backup" to "Letzte Sicherung",
+        "no_backup_yet" to "Noch keine Sicherung",
+        "backup_success" to "Sicherung erfolgreich",
+        "backup_failed" to "Sicherung fehlgeschlagen",
+        "backup_running" to "Sichern...",
+        "restore_confirm_title" to "Wiederherstellung bestätigen",
+        "restore_confirm_body" to "Aktuelle Daten werden durch die Sicherung überschrieben. Sind Sie sicher?",
+        "sign_in_required" to "Zum Sichern mit Google anmelden",
+        "google_signed_in" to "Angemeldet",
+        "google_sign_in_btn" to "Mit Google anmelden",
+        "google_sign_out" to "Abmelden",
+
+        "auth_title" to "Lucky-Konto",
+        "user_profile" to "Benutzerprofil",
+        "name" to "Vollständiger Name",
+        "email" to "E-Mail-Adresse",
+        "google_login" to "Mit Google-Konto verknüpfen",
+        "login" to "Anmelden",
+        "register" to "Konto registrieren",
+        "logout" to "Abmelden",
+        "server_url" to "Backend-Host-URL",
+        "not_logged_in" to "Nicht angemeldet",
+        "logged_in_as" to "Angemeldet:",
+
+        "language" to "Sprache / Language",
+        "change_lang_confirm" to "Sprache ändern",
+        "change_lang_body" to "Möchten Sie die Sprache wirklich auf Deutsch ändern?",
+        "confirm" to "Bestätigen",
+        "cancel" to "Abbrechen",
+
+        "ocr_running" to "KI analysiert Beleg...",
+        "ocr_desc" to "Der intelligente KI-Scanner extrahiert automatisch Beträge und Artikelnamen.",
+        "ocr_draft_label" to "Gescannten Entwurf prüfen",
+        "take_photo" to "Foto aufnehmen",
+        "mock_select_receipt_label" to "Beispielbeleg zum Testen des KI-Scans auswählen:",
+        "pick_from_gallery" to "Aus Galerie wählen",
+
+        "choose_language" to "Sprache wählen",
+        "choose_language_subtitle" to "Wählen Sie Ihre bevorzugte Sprache",
+        "continue_btn" to "Weiter"
+    )
+
+    private val hi = mapOf(
+        "app_name" to "Lucky Wallet",
+        "home" to "होम",
+        "history" to "इतिहास",
+        "reports" to "रिपोर्ट",
+        "tools" to "उपकरण",
+        "settings" to "सेटिंग्स",
+
+        "current_balance" to "उपलब्ध कुल शेष",
+        "income" to "आय",
+        "expense" to "व्यय",
+        "recent_transactions" to "हाल के लेनदेन",
+        "no_transactions" to "अभी तक कोई लेनदेन दर्ज नहीं किया गया।",
+        "quick_actions" to "त्वरित क्रियाएँ",
+        "scan_receipt" to "एआई स्कैन",
+        "add_expense" to "व्यय जोड़ें",
+        "add_income" to "आय जोड़ें",
+
+        "all" to "सभी",
+        "waiting_sync" to "सिंक लंबित",
+        "sync_now" to "अभी सिंक करें",
+        "sync_status" to "सिंक स्थिति",
+        "synced" to "सिंक किया गया",
+        "pending" to "लंबित",
+        "transaction_detail" to "लेनदेन विवरण",
+        "delete_confirm" to "क्या आप वाकई इस लेनदेन को हटाना चाहते हैं?",
+        "delete" to "हटाएं",
+        "edit" to "संपादित करें",
+
+        "amount" to "राशि",
+        "title" to "शीर्षक/वस्तु",
+        "category" to "श्रेणी",
+        "account" to "खाता",
+        "date" to "तारीख",
+        "note" to "टिप्पणी (वैकल्पिक)",
+        "save" to "सहेजें",
+        "fill_all_fields" to "कृपया सभी विवरण भरें।",
+        "input_title_error" to "कृपया लेनदेन शीर्षक दर्ज करें।",
+        "input_title_income_error" to "कृपया आय शीर्षक दर्ज करें।",
+
+        "income_expense_chart" to "आय/व्यय चार्ट",
+        "advanced_sync_options" to "[+] उन्नत विकल्प (पीसी सिंक)",
+        "hide_advanced_sync" to "[-] उन्नत विकल्प छिपाएं",
+
+        "Ăn uống" to "खाना और पेय",
+        "Di chuyển" to "परिवहन",
+        "Mua sắm" to "खरीदारी",
+        "Giải trí" to "मनोरंजन",
+        "Nhà ở" to "आवास",
+        "Y tế" to "स्वास्थ्य",
+        "Khác" to "अन्य",
+        "Lương" to "वेतन",
+        "Thưởng" to "बोनस",
+        "Đầu tư" to "निवेश",
+        "Quà tặng" to "उपहार",
+
+        "Tiền mặt" to "नकद",
+        "Tài khoản ngân hàng" to "बैंक खाता",
+        "Ví MoMo" to "MoMo वॉलेट",
+
+        "report_dashboard" to "वित्तीय विश्लेषण डैशबोर्ड",
+        "time_filter" to "अवधि चुनें",
+        "today" to "आज",
+        "this_week" to "इस सप्ताह",
+        "this_month" to "इस महीने",
+        "this_year" to "इस वर्ष",
+        "custom" to "कस्टम",
+        "remaining" to "शेष",
+        "category_stats" to "श्रेणी के अनुसार विवरण",
+
+        "account_title" to "खाते प्रबंधित करें",
+        "add_account" to "नया खाता जोड़ें",
+        "edit_account" to "खाता संपादित करें",
+        "account_name" to "खाता नाम (जैसे नकद)",
+        "initial_balance" to "प्रारंभिक शेष",
+        "default_currency" to "डिफ़ॉल्ट मुद्रा",
+        "edit_category" to "श्रेणी संपादित करें",
+        "save_changes" to "परिवर्तन सहेजें",
+        "delete_account_confirm" to "क्या आप वाकई इस खाते को हटाना चाहते हैं? मौजूदा लेनदेन इतिहास के रूप में बने रहेंगे।",
+        "delete_category_confirm" to "क्या आप वाकई इस श्रेणी को हटाना चाहते हैं?",
+
+        "budget_title" to "बजट और सीमाएं",
+        "add_budget" to "बजट सीमा जोड़ें",
+        "budget_name" to "बजट नाम",
+        "budget_amount" to "बजट सीमा",
+        "budget_period" to "बजट चक्र",
+        "weekly" to "साप्ताहिक",
+        "monthly" to "मासिक",
+        "start_date" to "प्रारंभ तिथि",
+        "end_date" to "समाप्ति तिथि",
+
+        "category_title" to "श्रेणियां प्रबंधित करें",
+        "add_category" to "नई श्रेणी जोड़ें",
+        "expense_categories" to "व्यय श्रेणियां",
+        "income_categories" to "आय श्रेणियां",
+
+        "recurring_title" to "स्वचालित आवर्ती लेनदेन",
+        "add_recurring" to "आवर्ती नियम जोड़ें",
+        "recurring_name" to "अनुसूची नाम",
+        "cycle_type" to "अंतराल आवृत्ति",
+        "daily" to "दैनिक",
+        "monthly_cycle" to "मासिक",
+        "yearly" to "वार्षिक",
+
+        "split_bill_title" to "दोस्तों के साथ बिल बांटें",
+        "add_split" to "विभाजित बिल बनाएं",
+        "participants" to "प्रतिभागी सूची (अल्पविराम से अलग)",
+        "payer" to "भुगतानकर्ता",
+        "total_amount" to "कुल राशि",
+        "share_per_person" to "प्रति व्यक्ति हिस्सा",
+        "settlements" to "सुझाए गए ऋण निपटान",
+        "owes" to "देना है",
+        "to" to "को",
+
+        "backup_title" to "बैकअप और पुनर्स्थापना",
+        "backup_section" to "Google Drive",
+        "backup_now" to "अभी बैकअप लें",
+        "restore_now" to "Drive से पुनर्स्थापित करें",
+        "auto_backup" to "प्रतिदिन रात 8:00 बजे स्वतः बैकअप",
+        "last_backup" to "अंतिम बैकअप",
+        "no_backup_yet" to "अभी तक कोई बैकअप नहीं",
+        "backup_success" to "बैकअप सफल",
+        "backup_failed" to "बैकअप विफल",
+        "backup_running" to "बैकअप हो रहा है...",
+        "restore_confirm_title" to "पुनर्स्थापना की पुष्टि करें",
+        "restore_confirm_body" to "वर्तमान डेटा बैकअप द्वारा अधिलेखित हो जाएगा। क्या आप निश्चित हैं?",
+        "sign_in_required" to "बैकअप के लिए Google से साइन इन करें",
+        "google_signed_in" to "साइन इन किया गया",
+        "google_sign_in_btn" to "Google से साइन इन करें",
+        "google_sign_out" to "साइन आउट",
+
+        "auth_title" to "Lucky खाता",
+        "user_profile" to "उपयोगकर्ता प्रोफ़ाइल",
+        "name" to "पूरा नाम",
+        "email" to "ईमेल पता",
+        "google_login" to "Google खाते से लिंक करें",
+        "login" to "लॉग इन",
+        "register" to "खाता पंजीकृत करें",
+        "logout" to "लॉग आउट",
+        "server_url" to "बैकएंड होस्ट URL",
+        "not_logged_in" to "लॉग इन नहीं है",
+        "logged_in_as" to "लॉग इन:",
+
+        "language" to "भाषा / Language",
+        "change_lang_confirm" to "भाषा बदलें",
+        "change_lang_body" to "क्या आप वाकई भाषा को हिंदी में बदलना चाहते हैं?",
+        "confirm" to "पुष्टि करें",
+        "cancel" to "रद्द करें",
+
+        "ocr_running" to "एआई रसीद का विश्लेषण कर रहा है...",
+        "ocr_desc" to "स्मार्ट एआई स्कैनर स्वचालित रूप से राशि और वस्तु के नाम निकालेगा।",
+        "ocr_draft_label" to "स्कैन किए गए मसौदे की समीक्षा करें",
+        "take_photo" to "फोटो लें",
+        "mock_select_receipt_label" to "एआई स्कैन परीक्षण के लिए नमूना रसीद चुनें:",
+        "pick_from_gallery" to "गैलरी से चुनें",
+
+        "choose_language" to "भाषा चुनें",
+        "choose_language_subtitle" to "अपनी पसंदीदा भाषा चुनें",
+        "continue_btn" to "जारी रखें"
     )
 
     fun getString(key: String, lang: AppLanguage): String {
-        return if (lang == AppLanguage.VIETNAMESE) {
-            vi[key] ?: key
-        } else {
-            en[key] ?: vi[key] ?: key
+        val table = when (lang) {
+            AppLanguage.VIETNAMESE -> vi
+            AppLanguage.ENGLISH -> en
+            AppLanguage.GERMAN -> de
+            AppLanguage.HINDI -> hi
         }
+        // Fallback: bảng ngôn ngữ hiện tại → tiếng Anh → tiếng Việt → chính key
+        return table[key] ?: en[key] ?: vi[key] ?: key
     }
 }
 

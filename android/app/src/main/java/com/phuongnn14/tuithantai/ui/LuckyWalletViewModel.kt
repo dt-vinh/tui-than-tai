@@ -35,6 +35,10 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
     private val _currentLanguage = MutableStateFlow(AppLanguage.VIETNAMESE)
     val currentLanguage: StateFlow<AppLanguage> = _currentLanguage.asStateFlow()
 
+    /** Người dùng đã chọn ngôn ngữ ở lần mở app đầu tiên chưa. */
+    private val _hasChosenLanguage = MutableStateFlow(false)
+    val hasChosenLanguage: StateFlow<Boolean> = _hasChosenLanguage.asStateFlow()
+
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
@@ -95,6 +99,7 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
         settings["lang"]?.let {
             runCatching { _currentLanguage.value = AppLanguage.valueOf(it) }
         }
+        _hasChosenLanguage.value = settings["lang_chosen"]?.toBoolean() ?: false
         _isLoggedIn.value       = settings["logged_in"]?.toBoolean() ?: false
         _userName.value          = settings["username"] ?: ""
         _userEmail.value         = settings["email"] ?: ""
@@ -173,6 +178,16 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             _currentLanguage.value = lang
             repository.saveSetting("lang", lang.name)
+        }
+    }
+
+    /** Chọn ngôn ngữ ở màn hình chào lần đầu, đồng thời đánh dấu đã chọn. */
+    fun chooseLanguage(lang: AppLanguage) {
+        viewModelScope.launch {
+            _currentLanguage.value = lang
+            _hasChosenLanguage.value = true
+            repository.saveSetting("lang", lang.name)
+            repository.saveSetting("lang_chosen", "true")
         }
     }
 
