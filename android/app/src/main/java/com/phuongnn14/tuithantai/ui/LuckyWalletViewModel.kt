@@ -145,13 +145,21 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
     suspend fun analyzeImage(context: Context, uri: Uri): OcrResult {
         return try {
             val suggestion = expenseAnalyzer.analyze(context, uri, emptyList())
+            val uiItems = suggestion.items.mapNotNull { li ->
+                val name = li.name.trim()
+                if (name.isBlank()) return@mapNotNull null
+                val qty = li.quantity?.takeIf { it > 0 }?.toInt() ?: 1
+                val lineTotal = li.lineTotal ?: ((li.unitPrice ?: 0.0) * qty)
+                val unitPrice = li.unitPrice ?: (if (qty > 0) lineTotal / qty else lineTotal)
+                OcrItem(name = name, quantity = qty, price = unitPrice, total = lineTotal)
+            }
             OcrResult(
                 amount = suggestion.amount.toDouble(),
                 currency = "VND",
                 title = suggestion.title,
                 category = mapCategoryId(suggestion.categoryId),
                 merchantName = suggestion.title,
-                items = emptyList(),
+                items = uiItems,
                 type = if (suggestion.ocrEngine.contains("income")) "INCOME" else "EXPENSE",
                 needsReview = suggestion.needsReview,
                 documentType = if (suggestion.amount == 0L && suggestion.labels.isNotEmpty()) "non_receipt" else "receipt"

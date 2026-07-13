@@ -11,6 +11,7 @@ import com.phuongnn14.tuithantai.capture.CategoryResolver
 import com.phuongnn14.tuithantai.capture.ProductNoteExtractor
 import com.phuongnn14.tuithantai.data.CategoryEntity
 import com.phuongnn14.tuithantai.ocr.DocumentType
+import com.phuongnn14.tuithantai.ocr.LineItem
 import com.phuongnn14.tuithantai.ocr.MoneyParser
 import com.phuongnn14.tuithantai.ocr.OcrAnalyzer
 import com.phuongnn14.tuithantai.ocr.OcrResult
@@ -25,6 +26,7 @@ data class ExpenseSuggestion(
     val categoryId: String = "other",
     val ocrText: String = "",
     val labels: List<String> = emptyList(),
+    val items: List<LineItem> = emptyList(),
     val needsReview: Boolean = false,
     val reviewFields: List<String> = emptyList(),
     val ocrEngine: String = "",
@@ -80,12 +82,16 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                 Log.d(TAG, "Gemini primary OK in ${elapsed}ms: " +
                     "total=${geminiResult.totalAmount} conf=${geminiResult.confidence} " +
                     "cat=${geminiResult.categoryId} needsReview=${geminiResult.needsUserReview}")
+                val geminiTitle = geminiResult.merchantName?.takeIf { it.isNotBlank() }
+                    ?: geminiResult.items.firstOrNull { it.name.isNotBlank() }?.name
+                    ?: ""
                 return ExpenseSuggestion(
-                    title        = geminiResult.merchantName?.takeIf { it.isNotBlank() } ?: "",
+                    title        = geminiTitle,
                     amount       = geminiResult.totalAmount?.toLong() ?: 0L,
                     categoryId   = geminiResult.categoryId,
                     ocrText      = "",
                     labels       = emptyList(),
+                    items        = geminiResult.items,
                     needsReview  = geminiResult.needsUserReview,
                     reviewFields = geminiResult.reviewFields,
                     ocrEngine    = "gemini-primary",
@@ -184,6 +190,7 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
             categoryId   = categoryId,
             ocrText      = engineResult.rawText,
             labels       = labels.map { it.text },
+            items        = result.items,
             needsReview  = needsReview,
             reviewFields = if (needsReview && "total_amount" !in result.reviewFields)
                                result.reviewFields + "total_amount"

@@ -198,7 +198,7 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
 
     companion object {
         private const val ENDPOINT =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent"
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
         private val FORBIDDEN_NAMES = setOf(
             "Không xác định", "Khác", "Hàng hóa", "Vật phẩm",

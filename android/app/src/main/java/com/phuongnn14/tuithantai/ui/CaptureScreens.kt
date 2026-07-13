@@ -106,6 +106,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.phuongnn14.tuithantai.capture.CaptureMode
+import com.phuongnn14.tuithantai.capture.CaptureOcrOrchestrator
 import com.phuongnn14.tuithantai.capture.ExpenseCaptureResult
 import com.phuongnn14.tuithantai.capture.MlKitObjectClassifier
 import com.phuongnn14.tuithantai.capture.MoneyPresenceDetector
@@ -173,7 +174,9 @@ fun MoneyScanCameraScreen(
             try {
                 val rawText = ocrService.recognizeUri(context, uri)
                 lastRawText = rawText
-                finishWithRawText(rawText, uri)
+                // Local-first: MLKit trước, Gemini cứu khi local đọc kém
+                val result = CaptureOcrOrchestrator.analyze(context, uri, rawText)
+                onResult(result)
             } catch (e: Exception) {
                 errorText = "Không đọc được ảnh này. Bạn có thể chụp lại hoặc nhập thủ công."
             } finally {
@@ -364,7 +367,8 @@ fun MoneyScanCameraScreen(
                                 val uri = capturePhoto(context, capture, "money_scan")
                                 val rawText = ocrService.recognizeUri(context, uri)
                                 lastRawText = rawText
-                                finishWithRawText(rawText, uri)
+                                // Local-first: MLKit trước, Gemini cứu khi local đọc kém
+                                onResult(CaptureOcrOrchestrator.analyze(context, uri, rawText))
                             } catch (e: Exception) {
                                 errorText = "Kh\u00f4ng ch\u1ee5p \u0111\u01b0\u1ee3c \u1ea3nh. H\u00e3y th\u1eed l\u1ea1i ho\u1eb7c ch\u1ecdn t\u1eeb th\u01b0 vi\u1ec7n."
                             } finally {
