@@ -13,8 +13,13 @@ object AmountExtractor {
         "tong tien", "total", "grand total", "amount due"
     )
 
+    private val finalPayableKeywords = listOf(
+        "tong thanh toan", "thanh toan", "tong cong", "phai tra", "tong tien",
+        "grand total", "amount due"
+    )
+
     private val excludeKeywords = listOf(
-        "khach dua", "tien thua", "tra lai", "giam gia", "discount", "vat",
+        "khach dua", "tien thua", "tra lai", "giam gia", "giam", "chiet khau", "discount", "vat",
         "thue", "mst", "ma so thue", "so hoa don", "so hd", "ma hd", "sdt",
         "dien thoai", "phone", "gio vao", "gio in", "gio ra", "table",
         "qty", "sl/tl", "so luong", "tong sl", "sl san pham", "ma don",
@@ -162,10 +167,18 @@ object AmountExtractor {
             !normText.contains("hoa don thanh toan") &&
             !normText.contains("hoa don")
 
+    private fun hasFinalPayableKeyword(normText: String): Boolean =
+        finalPayableKeywords.any { normText.contains(it) } &&
+            !normText.contains("hoa don thanh toan") &&
+            !normText.contains("hoa don")
+
     private fun ScoredCandidate.score(largest: Long): ScoredCandidate {
         var total = 0
         val reasons = mutableListOf<String>()
-        if (hasTrustedPayableKeyword(normContext)) {
+        if (hasFinalPayableKeyword(normContext)) {
+            total += 80
+            reasons += "final payable keyword"
+        } else if (hasTrustedPayableKeyword(normContext)) {
             total += 60
             reasons += "priority keyword"
         } else if (normLine.contains("gia")) {

@@ -36,6 +36,19 @@ object VietnameseBanknoteDetector {
         "vietnam"
     )
 
+    private val receiptMarkers = listOf(
+        "hoa don", "thanh toan", "tong tien", "tong cong", "thanh tien",
+        "don gia", "tien chiet khau", "ma hd", "so hd", "invoice", "receipt"
+    )
+
+    private val strongBanknoteMarkers = listOf(
+        "cong hoa xa hoi chu nghia",
+        "cong hoa xa hoi",
+        "ngan hang nha nuoc",
+        "chu tich ho chi minh",
+        "doc lap tu do hanh phuc"
+    )
+
     fun detect(rawText: String): Detection? {
         val lines = rawText.lineSequence()
             .map { it.trim() }
@@ -45,8 +58,15 @@ object VietnameseBanknoteDetector {
 
         val normalizedLines = lines.map { AmountExtractor.normalize(it) }
         val normalizedFull = normalizedLines.joinToString("\n")
+
+        // Receipts commonly contain an address ending in "Viet Nam", the word
+        // "dong", and discount values such as 1.000. Those weak signals must
+        // never make a receipt look like a banknote.
+        if (receiptMarkers.any { normalizedFull.contains(it) }) return null
+
+        val markerHitCount = banknoteMarkers.count { normalizedFull.contains(it) }
         val hasBanknoteContext =
-            banknoteMarkers.count { normalizedFull.contains(it) } >= 1 &&
+            (markerHitCount >= 2 || strongBanknoteMarkers.any { normalizedFull.contains(it) }) &&
                 (normalizedFull.contains("dong") || normalizedFull.contains("vnd"))
         if (!hasBanknoteContext) return null
 

@@ -219,4 +219,46 @@ class CaptureExtractorTest {
 
         assertEquals(4_000L, VietnameseBanknoteDetector.detect(text)?.amount)
     }
+
+    @Test
+    fun receiptAddressAndDiscountDoNotTriggerBanknoteDetection() {
+        val text = """
+            HOA DON THANH TOAN
+            So HD: 160632
+            Tra Phong Lan Da 1 65,000 65,000
+            Thanh tien: 65,000 d
+            Tien chiet khau Doi 1 Diem: Giam 1000
+            -27,000 d
+            Tong tien: 38,000 d
+            Thanh toan (TRANSFER): 38,000 d
+            Dia chi: Ha Noi, Viet Nam
+        """.trimIndent()
+
+        assertNull(VietnameseBanknoteDetector.detect(text))
+
+        val result = MoneyPresenceDetector.detect(text)
+        assertEquals(38_000L, result?.amount)
+        assertTrue(result?.productNote?.contains("Tien Viet Nam") != true)
+    }
+
+    @Test
+    fun discountedReceiptWithSplitTotalLinesReturnsFinalPayableAmount() {
+        val text = """
+            HOA DON THANH TOAN
+            Thanh tien:
+            65,000 d
+            Tien chiet khau Doi 1 Diem: Giam 1000
+            -27,000 d
+            Tong tien:
+            38,000 d
+            Thanh toan (TRANSFER)
+            38,000 d
+            Ha Noi, Viet Nam
+        """.trimIndent()
+
+        val result = MoneyPresenceDetector.detect(text)
+
+        assertEquals(38_000L, result?.amount)
+        assertTrue((result?.confidence ?: 0f) >= 0.75f)
+    }
 }
