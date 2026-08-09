@@ -20,7 +20,7 @@ import java.net.URL
 /**
  * Gemini Vision semantic layer for receipt analysis.
  * Receives image pixels plus the on-device OCR table and uses Gemini 3.6 Flash
- * to reconstruct Vietnamese receipt rows before selecting the payable total.
+ * to reconstruct multilingual receipt rows before selecting the payable total.
  *
  * The prompt instructs Gemini to follow the casebook rules:
  *  - Return strict JSON (no markdown)
@@ -213,8 +213,10 @@ RULES:
 3. Never fill item names with: "Không xác định", "Khác", "Hàng hóa", "Vật phẩm", "Sản phẩm", "Receipt", "Bill".
 4. Interpret each OCR line as one table row. Product rows may contain product name, discount, unit price and line total. Keep those monetary cells attached to the same row.
 5. Select FINAL PAYABLE AMOUNT by meaning, not confidence scoring. Priority labels: TIỀN CẦN THANH TOÁN, TỔNG THANH TOÁN, THANH TOÁN, TỔNG TIỀN HÀNG, TỔNG SỐ TIỀN, TỔNG CỘNG, PHẢI TRẢ, TỔNG TIỀN, GRAND TOTAL, AMOUNT DUE.
+5a. Apply the same semantic rule in every language. Examples: 应付金额/实付金额/总计 (Chinese), お支払金額/合計 (Japanese), 결제금액/합계 (Korean), कुल देय/देय राशि (Hindi), total a pagar, net à payer, zu zahlen, totale da pagare, valor total, jumlah bayar, ยอดชำระ/ยอดสุทธิ.
 6. On a total row with multiple monetary cells, negative values are discounts/adjustments and the LAST POSITIVE monetary cell is the payable total. Example: `TỔNG TIỀN HÀNG | -32.000 | 666.100` means total_amount=666100, never 32000.
 7. Do NOT select: cash received (Tiền nhận/Khách đưa), change (Tiền thừa), VAT only, discount, account balance, order ID, invoice number, serial number, phone number, quantity, date or time.
+7a. Discount/change exclusions also apply across languages, including 折扣/优惠/找零, 値引/割引/お釣り, 할인/거스름돈, छूट, descuento/cambio, remise/monnaie, Rabatt/Rückgeld, desconto/troco, ส่วนลด/เงินทอน.
 8. Always return a numeric total_amount. If no monetary value exists anywhere, return 0. Never return null.
 9. For VND: output integer without decimal (e.g. 40000 not 40000.0).
 10. For USD: output with 2 decimal places (e.g. 12.50).

@@ -3,9 +3,6 @@ package com.phuongnn14.tuithantai.ocr.engine
 import android.graphics.Bitmap
 import android.graphics.RectF
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import kotlinx.coroutines.tasks.await
 
 /**
  * OCR engine backed by Google ML Kit Text Recognition.
@@ -15,16 +12,13 @@ import kotlinx.coroutines.tasks.await
  */
 class MlKitOcrEngine : OcrEngine {
 
-    override val name: String = "mlkit_latin"
-
-    private val recognizer by lazy {
-        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-    }
+    override val name: String = "mlkit_multilingual"
 
     override suspend fun recognize(bitmap: Bitmap): OcrEngineResult {
         val start = System.currentTimeMillis()
         val image = InputImage.fromBitmap(bitmap, 0)
-        val result = recognizer.process(image).await()
+        val selected = MlKitMultilingualRecognizer.recognize(image)
+        val result = selected.text
 
         val lines = mutableListOf<OcrLine>()
         for (block in result.textBlocks) {
@@ -43,7 +37,7 @@ class MlKitOcrEngine : OcrEngine {
             .takeIf { it.isFinite() }?.toFloat() ?: 0.8f
 
         return OcrEngineResult(
-            engineName = name,
+            engineName = "${name}_${selected.script}",
             rawText = result.text,
             lines = lines,
             confidence = avgConf,
