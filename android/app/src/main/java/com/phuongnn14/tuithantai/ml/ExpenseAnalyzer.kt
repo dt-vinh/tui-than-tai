@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import com.phuongnn14.tuithantai.BuildConfig
+import com.phuongnn14.tuithantai.capture.AmountExtractor
+import com.phuongnn14.tuithantai.capture.ReceiptTableInterpreter
 import com.phuongnn14.tuithantai.data.CategoryEntity
 import com.phuongnn14.tuithantai.ocr.DocumentType
 import com.phuongnn14.tuithantai.ocr.MoneyParser
@@ -31,24 +33,21 @@ data class ExpenseSuggestion(
 /**
  * Two-stage OCR pipeline:
  *
- * STAGE 1 — Gemini Vision (primary, when API key set + network available)
- *   • Understands context in any language (VI, EN, TH, JP, …)
- *   • Handles banknotes, receipts, e-commerce screenshots, bank transfers
- *   • Returns result directly if successful
+ * STAGE 1 — ML Kit OCR + Gemini semantic reconstruction
+ *   • ML Kit preserves the visible OCR text for review and builds receipt rows
+ *   • Gemini receives both image pixels and a Markdown table of those rows
+ *   • Final amount is selected by total-row meaning, not a confidence threshold
  *
- * STAGE 2 — MLKit + SmartTotalResolver (offline fallback)
+ * STAGE 2 — ML Kit + semantic row resolver (offline fallback)
  *   • Runs when Gemini is unavailable (no network / API error / blank key)
  *   • Language-agnostic: currency-symbol detection + positional scoring
  *     + frequency-penalty (unit prices repeat, total doesn't)
- *   • If resolver confidence >= 0.65 → return result
- *   • If confidence < 0.65 → return result with needsReview = true
+ *   • Always returns a numeric amount; 0 means no monetary value was found
  */
 class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
 
     companion object {
         private const val TAG = "ExpenseAnalyzer"
-        /** MLKit result below this confidence triggers needsReview */
-        private const val LOCAL_REVIEW_THRESHOLD = 0.65
         /** Max image side for Gemini — keeps token cost low */
         private const val GEMINI_MAX_SIDE = 768
     }
@@ -63,12 +62,22 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
         @Suppress("UNUSED_PARAMETER") categories: List<CategoryEntity>
     ): ExpenseSuggestion {
         val bitmap = loadBitmap(context, imageUri)
-            ?: return ExpenseSuggestion(needsReview = true, reviewFields = listOf("total_amount"))
+            ?: return ExpenseSuggestion(amount = 0L, needsReview = false)
 
-        // ── STAGE 1: Gemini Vision primary ────────────────────────────────────
+        // Read on-device OCR first so Gemini receives both image pixels and a row table.
+        val selector = engineSelector ?: OcrEngineSelector(context)
+        val t1 = System.currentTimeMillis()
+        val engineAttempt = runCatching { selector.recognize(bitmap) }
+            .onFailure { Log.e(TAG, "MLKit OCR failed: ${it.message}") }
+        val engineResult = engineAttempt.getOrNull()
+        val rawOcrText = engineResult?.rawText.orEmpty()
+
+        // ── STAGE 1: Gemini Vision + reconstructed OCR table ─────────────────
         if (BuildConfig.GEMINI_API_KEY.isNotBlank()) {
             val t0 = System.currentTimeMillis()
-            val geminiResult = runCatching { gemini.analyze(scaleBitmap(bitmap, GEMINI_MAX_SIDE)) }
+            val geminiResult = runCatching {
+                gemini.analyze(scaleBitmap(bitmap, GEMINI_MAX_SIDE), rawOcrText)
+            }
                 .onFailure { Log.w(TAG, "Gemini primary exception: ${it.message}") }
                 .getOrNull()
 
@@ -79,12 +88,15 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                     "cat=${geminiResult.categoryId} needsReview=${geminiResult.needsUserReview}")
                 return ExpenseSuggestion(
                     title        = geminiResult.merchantName?.takeIf { it.isNotBlank() } ?: "",
-                    amount       = geminiResult.totalAmount?.toLong() ?: 0L,
+                    amount       = ReceiptTableInterpreter.resolveFinalAmount(rawOcrText)?.amount
+                        ?: geminiResult.totalAmount?.toLong()
+                        ?: AmountExtractor.extract(rawOcrText)?.amount
+                        ?: 0L,
                     categoryId   = geminiResult.categoryId,
-                    ocrText      = "",
+                    ocrText      = rawOcrText,
                     labels       = emptyList(),
-                    needsReview  = geminiResult.needsUserReview,
-                    reviewFields = geminiResult.reviewFields,
+                    needsReview  = false,
+                    reviewFields = emptyList(),
                     ocrEngine    = "gemini-primary",
                     ocrConfidence = geminiResult.confidence.toFloat(),
                     ocrElapsedMs  = elapsed
@@ -96,11 +108,7 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
         }
 
         // ── STAGE 2: MLKit OCR + SmartTotalResolver ───────────────────────────
-        val selector = engineSelector ?: OcrEngineSelector(context)
-        val t1 = System.currentTimeMillis()
-        val engineAttempt = runCatching { selector.recognize(bitmap) }
-            .onFailure { Log.e(TAG, "MLKit OCR failed: ${it.message}") }
-        if (engineAttempt.isFailure) {
+        if (engineResult == null) {
             val labels = imageLabelAnalyzer.label(scaleBitmap(bitmap, GEMINI_MAX_SIDE))
             val objectSuggestion = ObjectCategoryClassifier.classify(labels)
             return ExpenseSuggestion(
@@ -109,15 +117,13 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                 categoryId = objectSuggestion.categoryId,
                 ocrText = "",
                 labels = labels.map { it.text },
-                needsReview = true,
-                reviewFields = listOf("total_amount"),
+                needsReview = false,
+                reviewFields = emptyList(),
                 ocrEngine = "image_labeling",
                 ocrConfidence = objectSuggestion.confidence,
                 ocrElapsedMs = System.currentTimeMillis() - t1
             )
         }
-        val engineResult = engineAttempt.getOrThrow()
-
         val elapsed = System.currentTimeMillis() - t1
         Log.d(TAG, "MLKit OCR in ${elapsed}ms: engine=${engineResult.engineName} " +
             "lines=${engineResult.lines.size} textLen=${engineResult.rawText.length}")
@@ -146,20 +152,21 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                 objectSuggestion.categoryId
             else -> result.categoryId
         }
-        val needsReview = result.needsUserReview || result.confidence < LOCAL_REVIEW_THRESHOLD
+        val semanticAmount = ReceiptTableInterpreter.resolveFinalAmount(engineResult.rawText)?.amount
+            ?: result.totalAmount?.toLong()
+            ?: AmountExtractor.extract(engineResult.rawText)?.amount
+            ?: 0L
 
         return ExpenseSuggestion(
             title        = result.merchantName
                 ?: inferTitle(engineResult.rawText, labels.map { it.text })
                 ?: objectSuggestion.title,
-            amount       = result.totalAmount?.toLong() ?: 0L,
+            amount       = semanticAmount,
             categoryId   = categoryId,
             ocrText      = engineResult.rawText,
             labels       = labels.map { it.text },
-            needsReview  = needsReview,
-            reviewFields = if (needsReview && "total_amount" !in result.reviewFields)
-                               result.reviewFields + "total_amount"
-                           else result.reviewFields,
+            needsReview  = false,
+            reviewFields = emptyList(),
             ocrEngine    = engineResult.engineName,
             ocrConfidence = result.confidence.toFloat(),
             ocrElapsedMs  = elapsed

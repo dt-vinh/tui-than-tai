@@ -29,10 +29,12 @@ object AmountExtractor {
     )
 
     private val amountPattern = Regex(
-        """(?<![A-Za-z0-9])(?:[0-9]{1,3}(?:[.,\s][0-9]{3})+|[0-9]{4,9}|[0-9]{1,3}\s*[kK])\s*(?:VND|VNĐ|vnđ|đ|d)?(?![A-Za-z0-9])"""
+        """(?<![A-Za-z0-9])(?:[0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{1,3}(?:\s[0-9]{3})+|[0-9]{4,12}|[0-9]{1,3}\s*[kK])\s*(?:VND|VNĐ|vnđ|đ|d)?(?![A-Za-z0-9])"""
     )
 
     fun extract(rawText: String): AmountExtractionResult? {
+        ReceiptTableInterpreter.resolveFinalAmount(rawText)?.let { return it }
+
         val lines = rawText.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.toList()
         if (lines.isEmpty()) return null
 
@@ -93,7 +95,7 @@ object AmountExtractor {
 
         val parsed = numeric.toLongOrNull() ?: return null
         val amount = if (isK) parsed * 1_000L else parsed
-        return amount.takeIf { it in 1..999_999_999L }
+        return amount.takeIf { it in 1..999_999_999_999L }
     }
 
     private fun segmentAfterPriorityKeyword(line: String, normLine: String): String? {

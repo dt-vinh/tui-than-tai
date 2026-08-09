@@ -8,6 +8,7 @@ import com.phuongnn14.tuithantai.ocr.DocumentType
 import com.phuongnn14.tuithantai.ocr.LineItem
 import com.phuongnn14.tuithantai.ocr.OcrResult
 import com.phuongnn14.tuithantai.ocr.TransactionType
+import com.phuongnn14.tuithantai.capture.ReceiptTableInterpreter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -17,13 +18,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Gemini Vision fallback for receipt analysis.
- *
- * Called only when local OCR confidence is below threshold (< 0.55)
- * or total_amount is null after local parsing.
- *
- * Uses gemini-2.0-flash-lite (cheapest vision model) — sufficient for
- * receipt text extraction. Upgrade to gemini-1.5-pro for difficult images.
+ * Gemini Vision semantic layer for receipt analysis.
+ * Receives image pixels plus the on-device OCR table and uses Gemini 3.6 Flash
+ * to reconstruct Vietnamese receipt rows before selecting the payable total.
  *
  * The prompt instructs Gemini to follow the casebook rules:
  *  - Return strict JSON (no markdown)
@@ -41,14 +38,14 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
         .distinct()
 
     /** Returns null if API key is blank, request fails, or JSON is invalid. */
-    suspend fun analyze(bitmap: Bitmap): OcrResult? {
+    suspend fun analyze(bitmap: Bitmap, rawOcrText: String = ""): OcrResult? {
         if (apiKeys.isEmpty()) {
             Log.w(TAG, "Gemini API key not set - skipping fallback")
             return null
         }
         return withContext(Dispatchers.IO) {
             for ((index, key) in apiKeys.withIndex()) {
-                val result = runCatching { callGemini(bitmap, key) }
+                val result = runCatching { callGemini(bitmap, rawOcrText, key) }
                     .onFailure { Log.e(TAG, "Gemini key ${index + 1} failed: ${it.message}") }
                     .getOrNull()
                 if (result != null) return@withContext result
@@ -57,8 +54,10 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
         }
     }
 
-    private fun callGemini(bitmap: Bitmap, apiKey: String): OcrResult {
+    private fun callGemini(bitmap: Bitmap, rawOcrText: String, apiKey: String): OcrResult {
         val jpegBase64 = bitmapToBase64(bitmap, maxSide = 1280)
+        val receiptTable = ReceiptTableInterpreter.toMarkdown(rawOcrText)
+        val prompt = "$SYSTEM_PROMPT\n\nML KIT OCR RECONSTRUCTED AS MARKDOWN TABLE:\n$receiptTable"
 
         val requestBody = JSONObject().apply {
             put("contents", JSONArray().apply {
@@ -73,7 +72,7 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
                         })
                         // Text prompt part
                         put(JSONObject().apply {
-                            put("text", SYSTEM_PROMPT)
+                            put("text", prompt)
                         })
                     })
                 })
@@ -106,10 +105,10 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
         val elapsed = System.currentTimeMillis() - start
         Log.d(TAG, "Gemini response in ${elapsed}ms, body length=${text.length}")
 
-        return parseGeminiResponse(text)
+        return parseGeminiResponse(text, rawOcrText)
     }
 
-    private fun parseGeminiResponse(responseText: String): OcrResult {
+    private fun parseGeminiResponse(responseText: String, rawOcrText: String): OcrResult {
         val root = JSONObject(responseText)
         val candidates = root.getJSONArray("candidates")
         val content = candidates.getJSONObject(0).getJSONObject("content")
@@ -156,16 +155,10 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
             }
         }
 
-        val reviewFields = mutableListOf<String>()
-        j.optJSONArray("review_fields")?.let { arr ->
-            for (i in 0 until arr.length()) reviewFields.add(arr.getString(i))
-        }
-
+        val semanticFallback = ReceiptTableInterpreter.resolveFinalAmount(rawOcrText)?.amount?.toDouble() ?: 0.0
         val totalAmount = j.optDouble("total_amount").takeIf { !it.isNaN() && it > 0 }
+            ?: semanticFallback
         val confidence = j.optDouble("confidence", 0.85)
-        val needsReview = j.optBoolean("needs_user_review", false) ||
-                          totalAmount == null ||
-                          docType == DocumentType.STATEMENT
 
         return OcrResult(
             documentType = docType,
@@ -180,8 +173,8 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
             dateTime = j.optString("date_time").takeIf { it.isNotBlank() },
             paymentMethod = j.optString("payment_method").takeIf { it.isNotBlank() },
             confidence = confidence,
-            needsUserReview = needsReview,
-            reviewFields = reviewFields,
+            needsUserReview = false,
+            reviewFields = emptyList(),
             reason = j.optString("reason", "Analyzed by Gemini Vision")
         )
     }
@@ -198,7 +191,7 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
 
     companion object {
         private const val ENDPOINT =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent"
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
 
         private val FORBIDDEN_NAMES = setOf(
             "Không xác định", "Khác", "Hàng hóa", "Vật phẩm",
@@ -212,24 +205,25 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
         private val SYSTEM_PROMPT = """
 You are the OCR reasoning layer for the Vietnamese personal finance app "Tui Than Tai".
 
-TASK: Extract the monetary amount and context from ANY image the user photographs — receipts, invoices, payment screenshots, banknotes, price tags, e-commerce order screens, bank transfer confirmations, utility bills, etc.
+TASK: Read the image and the supplied ML Kit Markdown table together. Reconstruct the receipt row-by-row and column-by-column before selecting the final monetary amount.
 
 RULES:
 1. Return strict JSON only — no markdown, no explanation, no code block.
 2. Never hallucinate product names. If a name is unclear, set name="" and needs_review=true.
 3. Never fill item names with: "Không xác định", "Khác", "Hàng hóa", "Vật phẩm", "Sản phẩm", "Receipt", "Bill".
-4. Select FINAL PAYABLE AMOUNT as total_amount. Do NOT select: cash received (Tiền nhận/Khách đưa), change (Tiền thừa), VAT only, discount, subtotal, account balance, order ID, invoice number, serial number, phone number, or time.
-5. Priority total keywords: TỔNG CỘNG, TỔNG THANH TOÁN, TỔNG SỐ TIỀN, TOTAL, GRAND TOTAL, AMOUNT DUE, PHẢI TRẢ.
-6. For VND: output integer without decimal (e.g. 40000 not 40000.0).
-7. For USD: output with 2 decimal places (e.g. 12.50).
-8. Category classification: line items 70% weight > merchant 20% > document title 10%.
-9. If merchant is a sports venue but items are food/drink → category = food_and_drink.
-10. BANKNOTE / CURRENCY NOTE: If the image is a physical banknote or currency note (e.g. 5000đ, 10000đ, 100 USD bill), use document_type = "payment_confirmation", total_amount = the face value printed on the note (e.g. 10000 for a 10,000 VND note), transaction_type = "expense", category_id = "other", needs_user_review = false.
-11. PRICE TAG / PRODUCT LABEL: If image shows a price tag or product label with a single price, use document_type = "pos_receipt", total_amount = that price, needs_user_review = false.
-12. E-COMMERCE ORDER SCREENSHOT (Shopee, Lazada, Tiki, Amazon, etc.): total_amount = "Tổng số tiền" / "Order total" / final checkout amount — NOT the original/crossed-out price, NOT per-item price.
-13. PAYMENT APP SCREENSHOT (MoMo, ZaloPay, VNPay, banking app): total_amount = the transferred/paid amount, NOT the account balance, NOT the reference number.
-14. If image is completely unrelated to money (landscape photo, selfie, document with no numbers) → document_type = "not_receipt", total_amount = null, needs_user_review = true.
-15. Payroll sheets, salary documents → document_type = "statement", needs_user_review = true.
+4. Interpret each OCR line as one table row. Product rows may contain product name, discount, unit price and line total. Keep those monetary cells attached to the same row.
+5. Select FINAL PAYABLE AMOUNT by meaning, not confidence scoring. Priority labels: TIỀN CẦN THANH TOÁN, TỔNG THANH TOÁN, THANH TOÁN, TỔNG TIỀN HÀNG, TỔNG SỐ TIỀN, TỔNG CỘNG, PHẢI TRẢ, TỔNG TIỀN, GRAND TOTAL, AMOUNT DUE.
+6. On a total row with multiple monetary cells, negative values are discounts/adjustments and the LAST POSITIVE monetary cell is the payable total. Example: `TỔNG TIỀN HÀNG | -32.000 | 666.100` means total_amount=666100, never 32000.
+7. Do NOT select: cash received (Tiền nhận/Khách đưa), change (Tiền thừa), VAT only, discount, account balance, order ID, invoice number, serial number, phone number, quantity, date or time.
+8. Always return a numeric total_amount. If no monetary value exists anywhere, return 0. Never return null.
+9. For VND: output integer without decimal (e.g. 40000 not 40000.0).
+10. For USD: output with 2 decimal places (e.g. 12.50).
+11. Category classification: line items 70% weight > merchant 20% > document title 10%.
+12. If merchant is a sports venue but items are food/drink → category = food_and_drink.
+13. BANKNOTE / CURRENCY NOTE: If the image is a physical banknote or currency note, use the face value printed on the note.
+14. PRICE TAG / PRODUCT LABEL: use the clearly displayed selling price.
+15. E-COMMERCE ORDER SCREENSHOT: use the final checkout amount, not original/crossed-out or per-item price.
+16. PAYMENT APP SCREENSHOT: use the transferred/paid amount, not account balance or reference number.
 
 CATEGORY VALUES: food_and_drink, coffee, transport, shopping, bills, health, entertainment, travel, other
 

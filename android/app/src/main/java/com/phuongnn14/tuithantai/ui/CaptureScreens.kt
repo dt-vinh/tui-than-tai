@@ -106,13 +106,16 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.phuongnn14.tuithantai.capture.CaptureMode
+import com.phuongnn14.tuithantai.capture.AmountExtractor
 import com.phuongnn14.tuithantai.capture.ExpenseCaptureResult
 import com.phuongnn14.tuithantai.capture.MlKitObjectClassifier
 import com.phuongnn14.tuithantai.capture.MoneyPresenceDetector
 import com.phuongnn14.tuithantai.capture.OcrService
+import com.phuongnn14.tuithantai.capture.ReceiptTableInterpreter
 import com.phuongnn14.tuithantai.capture.TransactionType as CaptureTransactionType
 import com.phuongnn14.tuithantai.data.AccountEntity
 import com.phuongnn14.tuithantai.data.CategoryEntity
+import com.phuongnn14.tuithantai.ml.ExpenseAnalyzer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -144,6 +147,7 @@ fun MoneyScanCameraScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val ocrService = remember { OcrService() }
+    val expenseAnalyzer = remember { ExpenseAnalyzer() }
 
     var hasCameraPermission by remember { mutableStateOf(false) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
@@ -161,9 +165,38 @@ fun MoneyScanCameraScreen(
     LaunchedEffect(Unit) { permissionLauncher.launch(Manifest.permission.CAMERA) }
 
     fun finishWithRawText(rawText: String, sourceUri: Uri? = null) {
-        val result = MoneyPresenceDetector.detect(rawText, sourceUri?.toString())
+        val detected = MoneyPresenceDetector.detect(rawText, sourceUri?.toString())
             ?: MoneyPresenceDetector.uncertainDraft(rawText, sourceUri?.toString())
-        onResult(result)
+        val amount = ReceiptTableInterpreter.resolveFinalAmount(rawText)?.amount
+            ?: detected.amount
+            ?: AmountExtractor.extract(rawText)?.amount
+            ?: 0L
+        onResult(detected.copy(amount = amount, confidence = 1f, needsReview = false))
+    }
+
+    suspend fun analyzeCapturedUri(uri: Uri): ExpenseCaptureResult {
+        val suggestion = expenseAnalyzer.analyze(context, uri, emptyList())
+        val rawText = suggestion.ocrText.ifBlank {
+            runCatching { ocrService.recognizeUri(context, uri) }.getOrDefault("")
+        }
+        val local = MoneyPresenceDetector.detect(rawText, uri.toString())
+            ?: MoneyPresenceDetector.uncertainDraft(rawText, uri.toString())
+        val amount = ReceiptTableInterpreter.resolveFinalAmount(rawText)?.amount
+            ?: suggestion.amount.takeIf { it > 0L }
+            ?: local.amount
+            ?: AmountExtractor.extract(rawText)?.amount
+            ?: 0L
+        val semanticCategory = captureCategoryName(suggestion.categoryId)
+        return local.copy(
+            amount = amount,
+            productNote = suggestion.title.takeIf { it.isNotBlank() } ?: local.productNote,
+            merchantName = suggestion.title.takeIf { it.isNotBlank() } ?: local.merchantName,
+            categoryName = semanticCategory.takeUnless { it == "Khác" } ?: local.categoryName ?: "Khác",
+            confidence = 1f,
+            rawOcrText = rawText,
+            sourceImageUri = uri.toString(),
+            needsReview = false
+        )
     }
 
     fun processUri(uri: Uri) {
@@ -171,9 +204,9 @@ fun MoneyScanCameraScreen(
             isProcessing = true
             errorText = null
             try {
-                val rawText = ocrService.recognizeUri(context, uri)
-                lastRawText = rawText
-                finishWithRawText(rawText, uri)
+                val result = analyzeCapturedUri(uri)
+                lastRawText = result.rawOcrText.orEmpty()
+                onResult(result)
             } catch (e: Exception) {
                 errorText = "Không đọc được ảnh này. Bạn có thể chụp lại hoặc nhập thủ công."
             } finally {
@@ -254,7 +287,7 @@ fun MoneyScanCameraScreen(
                                                 lastRawText = rawText
                                                 val result = MoneyPresenceDetector.detect(rawText)
                                                 val detectedAmount = result?.amount
-                                                if (result != null && detectedAmount != null && result.confidence >= 0.75f) {
+                                                if (result != null && detectedAmount != null) {
                                                     if (lastAmount == detectedAmount) {
                                                         consecutiveHits += 1
                                                     } else {
@@ -269,13 +302,7 @@ fun MoneyScanCameraScreen(
                                                             scope.launch {
                                                                 try {
                                                                     val uri = capturePhoto(context, capture, "money_auto_scan")
-                                                                    val capturedText = runCatching {
-                                                                        ocrService.recognizeUri(context, uri)
-                                                                    }.getOrDefault(lastRawText)
-                                                                    finishWithRawText(
-                                                                        rawText = capturedText.ifBlank { lastRawText },
-                                                                        sourceUri = uri
-                                                                    )
+                                                                    onResult(analyzeCapturedUri(uri))
                                                                 } catch (_: Exception) {
                                                                     completed = false
                                                                     consecutiveHits = 0
@@ -378,9 +405,9 @@ fun MoneyScanCameraScreen(
                             errorText = null
                             try {
                                 val uri = capturePhoto(context, capture, "money_scan")
-                                val rawText = ocrService.recognizeUri(context, uri)
-                                lastRawText = rawText
-                                finishWithRawText(rawText, uri)
+                                val result = analyzeCapturedUri(uri)
+                                lastRawText = result.rawOcrText.orEmpty()
+                                onResult(result)
                             } catch (e: Exception) {
                                 errorText = "Kh\u00f4ng ch\u1ee5p \u0111\u01b0\u1ee3c \u1ea3nh. H\u00e3y th\u1eed l\u1ea1i ho\u1eb7c ch\u1ecdn t\u1eeb th\u01b0 vi\u1ec7n."
                             } finally {
@@ -652,8 +679,8 @@ fun CaptureResultConfirmationScreen(
                             }
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    text = if (result.confidence >= 0.75f) "AI \u0111\u00e3 \u0111i\u1ec1n nh\u00e1p" else "C\u1ea7n ki\u1ec3m tra l\u1ea1i",
-                                    color = if (result.confidence >= 0.75f) ScanGreen else Color(0xFFE65100),
+                                    text = "AI \u0111\u00e3 \u0111\u1ecdc theo ng\u1eef ngh\u0129a",
+                                    color = ScanGreen,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp
                                 )
@@ -688,10 +715,6 @@ fun CaptureResultConfirmationScreen(
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            if (result.confidence < 0.75f || result.amount == null) {
-                                WarningStrip("AI ch\u01b0a \u0111\u1ee7 ch\u1eafc v\u1ec1 s\u1ed1 ti\u1ec1n. H\u00e3y ki\u1ec3m tra tr\u01b0\u1edbc khi l\u01b0u.")
-                            }
-
                             OutlinedTextField(
                                 value = title,
                                 onValueChange = { title = it; inlineError = null },
@@ -969,6 +992,16 @@ private suspend fun loadBitmap(context: Context, uri: Uri): Bitmap? =
             context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
         }.getOrNull()
     }
+
+private fun captureCategoryName(categoryId: String): String = when (categoryId) {
+    "food", "food_and_drink", "coffee" -> "Ăn uống"
+    "transport", "travel" -> "Di chuyển"
+    "shopping" -> "Mua sắm"
+    "bills", "utilities" -> "Hóa đơn & Dịch vụ"
+    "health" -> "Y tế"
+    "entertainment" -> "Giải trí"
+    else -> "Khác"
+}
 
 private object CategoryResolverBridge {
     fun resolve(rawOcrText: String?, objectHint: String?): String =
