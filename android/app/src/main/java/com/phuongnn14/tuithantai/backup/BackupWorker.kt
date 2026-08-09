@@ -7,6 +7,8 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.google.android.gms.auth.GoogleAuthUtil
+import com.google.android.gms.auth.UserRecoverableAuthException
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
@@ -68,19 +70,14 @@ class BackupWorker(
             return Result.success() // không phải failure — chỉ skip
         }
 
-        // Lấy token (silent)
+        // Luôn lấy token mới; token lưu từ lần mở app trước có thể đã hết hạn.
         return try {
-            val tokenResult = com.google.android.gms.auth.api.signin.GoogleSignIn
-                .getLastSignedInAccount(context)
-            // Token được lưu trong ViewModel khi sign-in thành công
-            // Worker đọc từ SharedPreferences
             val prefs = context.getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
-            val token = prefs.getString("drive_access_token", null)
-
-            if (token.isNullOrBlank()) {
-                Log.w(TAG, "Không có access token, bỏ qua backup")
-                return Result.success()
-            }
+            val token = GoogleAuthUtil.getToken(
+                context,
+                account.account ?: return Result.failure(),
+                DriveAuthSupport.DRIVE_SCOPE
+            )
 
             val result = DriveBackupManager.backup(context, token)
             if (result.success) {
@@ -91,6 +88,9 @@ class BackupWorker(
                 Log.w(TAG, "Auto backup thất bại: ${result.message}")
                 Result.retry()
             }
+        } catch (e: UserRecoverableAuthException) {
+            Log.w(TAG, "Drive permission requires foreground confirmation")
+            Result.failure()
         } catch (e: Exception) {
             Log.e(TAG, "Auto backup lỗi: ${e.message}")
             Result.retry()

@@ -1577,10 +1577,13 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
     // Launcher xử lý kết quả Drive permission (UserRecoverableAuthException)
     val drivePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
-    ) { _ ->
-        // User vừa cấp quyền Drive → thử lấy token lại
-        coroutineScope.launch {
-            viewModel.refreshDriveToken(context)
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            coroutineScope.launch {
+                viewModel.refreshDriveToken(context)
+            }
+        } else {
+            viewModel.reportDrivePermissionCancelled()
         }
     }
 
@@ -1600,7 +1603,7 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                 )
             }
         }.onFailure { e ->
-            android.util.Log.e("GoogleSignIn", "Sign-in failed: ${e.message}")
+            viewModel.reportGoogleSignInFailure(e)
         }
     }
 
@@ -1658,6 +1661,9 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
                             Spacer(Modifier.width(8.dp))
                             Text(Localization.getString("google_sign_in_btn", language))
                         }
+                        backupMessage?.let { msg ->
+                            Text(msg, style = MaterialTheme.typography.bodySmall, color = BrandExpense)
+                        }
                     } else {
                         // Đã đăng nhập
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -1689,7 +1695,11 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
 
                         // Sao lưu ngay
                         Button(
-                            onClick = { viewModel.backupNow(context) },
+                            onClick = {
+                                viewModel.backupNow(context) { intent ->
+                                    drivePermissionLauncher.launch(intent)
+                                }
+                            },
                             enabled = !isBackingUp,
                             shape = AppShape,
                             colors = ButtonDefaults.buttonColors(containerColor = BrandGreenDark),
@@ -1787,7 +1797,12 @@ fun SettingsScreen(viewModel: LuckyWalletViewModel, language: AppLanguage) {
             text = { Text(Localization.getString("restore_confirm_body", language)) },
             confirmButton = {
                 Button(
-                    onClick = { showRestoreConfirm = false; viewModel.restoreFromDrive(context) },
+                    onClick = {
+                        showRestoreConfirm = false
+                        viewModel.restoreFromDrive(context) { intent ->
+                            drivePermissionLauncher.launch(intent)
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text(Localization.getString("confirm", language)) }
             },

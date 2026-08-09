@@ -262,12 +262,28 @@ fun MoneyScanCameraScreen(
                                                         consecutiveHits = 1
                                                     }
                                                     if (consecutiveHits >= 2) {
-                                                        completed = true
-                                                        isProcessing = true
-                                                        scope.launch {
-                                                            delay(350)
-                                                            onResult(result)
-                                                            isProcessing = false
+                                                        val capture = imageCapture
+                                                        if (capture != null) {
+                                                            completed = true
+                                                            isProcessing = true
+                                                            scope.launch {
+                                                                try {
+                                                                    val uri = capturePhoto(context, capture, "money_auto_scan")
+                                                                    val capturedText = runCatching {
+                                                                        ocrService.recognizeUri(context, uri)
+                                                                    }.getOrDefault(lastRawText)
+                                                                    finishWithRawText(
+                                                                        rawText = capturedText.ifBlank { lastRawText },
+                                                                        sourceUri = uri
+                                                                    )
+                                                                } catch (_: Exception) {
+                                                                    completed = false
+                                                                    consecutiveHits = 0
+                                                                    errorText = "Không lưu được ảnh quét. Hãy chụp lại."
+                                                                } finally {
+                                                                    isProcessing = false
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 } else {

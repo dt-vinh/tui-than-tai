@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.phuongnn14.tuithantai.backup.BackupWorker
+import com.phuongnn14.tuithantai.backup.DriveAuthSupport
 import com.phuongnn14.tuithantai.backup.DriveBackupManager
 import com.phuongnn14.tuithantai.data.*
 import com.phuongnn14.tuithantai.ml.ExpenseAnalyzer
@@ -104,7 +105,10 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
         val prefs = getApplication<android.app.Application>()
             .getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
         _lastBackupTime.value = prefs.getLong("last_backup_time", 0L)
-        prefs.getString("drive_access_token", null)?.let { _driveAccessToken.value = it }
+        // Access token có thời hạn ngắn, không phục hồi token cũ từ SharedPreferences.
+        com.google.android.gms.auth.api.signin.GoogleSignIn
+            .getLastSignedInAccount(getApplication())
+            ?.let { fetchDriveToken(getApplication(), it) {} }
     }
 
     private suspend fun prepopulateDataIfNeeded() {
@@ -218,6 +222,7 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
         onDrivePermissionNeeded: (android.content.Intent) -> Unit = {}
     ) {
         viewModelScope.launch {
+            _backupMessage.value = null
             // Lưu thông tin user ngay
             _isLoggedIn.value = true
             _userName.value = account.displayName ?: ""
@@ -238,25 +243,45 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
     ) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                val driveScope = "oauth2:https://www.googleapis.com/auth/drive.appdata"
                 val token = com.google.android.gms.auth.GoogleAuthUtil.getToken(
-                    context, account.account!!, driveScope
+                    context,
+                    account.account ?: error("Tài khoản Google không hợp lệ."),
+                    DriveAuthSupport.DRIVE_SCOPE
                 )
                 _driveAccessToken.value = token
                 // Lưu vào SharedPreferences cho BackupWorker
                 context.getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
                     .edit().putString("drive_access_token", token).apply()
-                android.util.Log.d("DriveAuth", "Drive access token OK, length=${token.length}, prefix=${token.take(20)}")
+                _backupMessage.value = "Đã kết nối Google Drive."
+                android.util.Log.d("DriveAuth", "Drive access token acquired")
             } catch (e: com.google.android.gms.auth.UserRecoverableAuthException) {
                 // Cần user cấp quyền Drive lần đầu
                 android.util.Log.w("DriveAuth", "Need Drive permission: ${e.message}")
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    e.intent?.let { onDrivePermissionNeeded(it) }
+                    val permissionIntent = e.intent
+                    if (permissionIntent != null) {
+                        _backupMessage.value = "Hãy cấp quyền Google Drive để đồng bộ dữ liệu."
+                        onDrivePermissionNeeded(permissionIntent)
+                    } else {
+                        _backupMessage.value = "Không mở được màn cấp quyền Google Drive."
+                    }
                 }
             } catch (e: Exception) {
                 android.util.Log.e("DriveAuth", "Token error: ${e.message}")
+                _driveAccessToken.value = null
+                _backupMessage.value = "Không kết nối được Google Drive. Vui lòng đăng nhập lại."
             }
         }
+    }
+
+    fun reportGoogleSignInFailure(error: Throwable) {
+        val statusCode = (error as? com.google.android.gms.common.api.ApiException)?.statusCode ?: -1
+        _backupMessage.value = DriveAuthSupport.signInErrorMessage(statusCode)
+        android.util.Log.e("GoogleSignIn", "Sign-in failed with status=$statusCode", error)
+    }
+
+    fun reportDrivePermissionCancelled() {
+        _backupMessage.value = "Bạn chưa cấp quyền Google Drive nên dữ liệu chưa thể đồng bộ."
     }
 
     /** Gọi lại sau khi user cấp quyền Drive xong */
@@ -292,12 +317,14 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
     // ── Backup / Restore ─────────────────────────────────────────────────────
 
     /** Luôn fetch fresh token trước khi backup/restore để tránh dùng token hết hạn */
-    private suspend fun getFreshDriveToken(context: Context): String? {
+    private suspend fun getFreshDriveToken(
+        context: Context,
+        onDrivePermissionNeeded: (android.content.Intent) -> Unit
+    ): String? {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val account = com.google.android.gms.auth.api.signin.GoogleSignIn
                     .getLastSignedInAccount(context) ?: return@withContext null
-                val driveScope = "oauth2:https://www.googleapis.com/auth/drive.appdata"
                 // Invalidate cached token cũ (nếu có) để buộc fetch mới
                 val oldToken = _driveAccessToken.value
                 if (oldToken != null) {
@@ -306,13 +333,26 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
                     } catch (_: Exception) {}
                 }
                 val token = com.google.android.gms.auth.GoogleAuthUtil.getToken(
-                    context, account.account!!, driveScope
+                    context,
+                    account.account ?: error("Tài khoản Google không hợp lệ."),
+                    DriveAuthSupport.DRIVE_SCOPE
                 )
                 _driveAccessToken.value = token
                 context.getSharedPreferences("backup_prefs", Context.MODE_PRIVATE)
                     .edit().putString("drive_access_token", token).apply()
-                android.util.Log.d("DriveAuth", "Fresh token OK, length=${token.length}, prefix=${token.take(20)}")
+                android.util.Log.d("DriveAuth", "Fresh Drive token acquired")
                 token
+            } catch (e: com.google.android.gms.auth.UserRecoverableAuthException) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    val permissionIntent = e.intent
+                    if (permissionIntent != null) {
+                        _backupMessage.value = "Hãy cấp quyền Google Drive để tiếp tục."
+                        onDrivePermissionNeeded(permissionIntent)
+                    } else {
+                        _backupMessage.value = "Không mở được màn cấp quyền Google Drive."
+                    }
+                }
+                null
             } catch (e: Exception) {
                 android.util.Log.e("DriveAuth", "getFreshToken error: ${e.message}")
                 null
@@ -320,14 +360,19 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun backupNow(context: Context) {
+    fun backupNow(
+        context: Context,
+        onDrivePermissionNeeded: (android.content.Intent) -> Unit = {}
+    ) {
         viewModelScope.launch {
             _isBackingUp.value = true
             _backupMessage.value = null
-            val token = getFreshDriveToken(context)
+            val token = getFreshDriveToken(context, onDrivePermissionNeeded)
             if (token == null) {
                 _isBackingUp.value = false
-                _backupMessage.value = "Không lấy được token. Vui lòng đăng nhập lại."
+                if (_backupMessage.value == null) {
+                    _backupMessage.value = "Không lấy được quyền Google Drive. Vui lòng đăng nhập lại."
+                }
                 return@launch
             }
             val result = DriveBackupManager.backup(context, token)
@@ -342,14 +387,19 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun restoreFromDrive(context: Context) {
+    fun restoreFromDrive(
+        context: Context,
+        onDrivePermissionNeeded: (android.content.Intent) -> Unit = {}
+    ) {
         viewModelScope.launch {
             _isBackingUp.value = true
             _backupMessage.value = null
-            val token = getFreshDriveToken(context)
+            val token = getFreshDriveToken(context, onDrivePermissionNeeded)
             if (token == null) {
                 _isBackingUp.value = false
-                _backupMessage.value = "Không lấy được token. Vui lòng đăng nhập lại."
+                if (_backupMessage.value == null) {
+                    _backupMessage.value = "Không lấy được quyền Google Drive. Vui lòng đăng nhập lại."
+                }
                 return@launch
             }
             val result = DriveBackupManager.restore(context, token)
