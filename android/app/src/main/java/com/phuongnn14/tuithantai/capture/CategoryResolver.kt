@@ -12,7 +12,8 @@ object CategoryResolver {
             tokens = listOf(
                 "sui cao", "com", "mi", "tra sua", "tra dao", "tra chanh",
                 "tra thao moc", "cafe", "ca phe", "restaurant", "bun", "pho",
-                "lau", "nha hang", "food", "coffee", "tea"
+                "lau", "nha hang", "food", "coffee", "tea", "banh", "sua tuoi",
+                "do uong"
             )
         ),
         Rule(
@@ -33,7 +34,8 @@ object CategoryResolver {
                 "shopping", "sach", "book", "fashion accessory", "shopee",
                 "lazada", "tiki", "iphone", "ipad", "macbook", "apple",
                 "samsung", "oppo", "xiaomi", "dien thoai", "smartphone",
-                "laptop", "may tinh", "dien tu", "phu kien"
+                "laptop", "may tinh", "dien tu", "phu kien", "winmart",
+                "sieu thi", "supermarket", "grocery"
             )
         ),
         Rule(
@@ -42,9 +44,14 @@ object CategoryResolver {
         )
     )
 
+    private val retailContextTokens = listOf(
+        "winmart", "sieu thi", "supermarket", "grocery", "convenience store"
+    )
+
     fun resolve(rawOcrText: String?, objectHint: String? = null): String {
-        val ocr = AmountExtractor.normalize(rawOcrText.orEmpty())
+        val ocr = normalizeCategoryText(rawOcrText.orEmpty())
         val objectText = AmountExtractor.normalize(objectHint.orEmpty())
+        if (retailContextTokens.any { containsToken(ocr, it) }) return "Mua sắm"
 
         return bestMatch(
             listOf(
@@ -53,6 +60,14 @@ object CategoryResolver {
             )
         ) ?: "Khác"
     }
+
+    private fun normalizeCategoryText(rawText: String): String = rawText.lineSequence()
+        .filterNot { line ->
+            val normalized = AmountExtractor.normalize(line)
+            normalized.contains("grab_online") ||
+                (normalized.contains("thanh toan") && normalized.contains("grab"))
+        }
+        .joinToString(" ") { AmountExtractor.normalize(it) }
 
     private fun bestMatch(parts: List<WeightedText>): String? {
         if (parts.all { it.text.isBlank() }) return null

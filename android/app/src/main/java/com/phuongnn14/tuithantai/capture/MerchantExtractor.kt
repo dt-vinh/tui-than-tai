@@ -3,10 +3,14 @@ package com.phuongnn14.tuithantai.capture
 import java.util.Locale
 
 object MerchantExtractor {
+    private val documentTokens = listOf(
+        "hoa don", "invoice", "bill", "phieu tinh tien", "phieu tam tinh"
+    )
+
     private val skipTokens = listOf(
         "hoa don", "invoice", "bill", "sdt", "phone", "mst", "ma so thue",
         "so:", "so hd", "ma hd", "gio vao", "gio in", "tai ban", "table",
-        "dia chi", "address", "thanh cong", "vnd"
+        "dia chi", "address", "thanh cong", "vnd", "phieu tinh tien", "phieu tam tinh"
     )
 
     fun extract(rawText: String): String? {
@@ -18,14 +22,16 @@ object MerchantExtractor {
 
         val beforeInvoice = lines.takeWhile {
             val norm = AmountExtractor.normalize(it)
-            !norm.contains("hoa don") && !norm.contains("invoice") && !norm.contains("bill")
+            documentTokens.none { token -> norm.contains(token) }
         }
 
-        val candidates = (beforeInvoice.ifEmpty { lines }).filter { line ->
+        val candidates = (beforeInvoice.ifEmpty { lines }).mapNotNull { line ->
             val norm = AmountExtractor.normalize(line)
-            skipTokens.none { norm.contains(it) } &&
+            line.takeIf {
+                skipTokens.none { token -> norm.contains(token) } &&
                 line.count { it.isDigit() }.toFloat() / line.length < 0.35f &&
                 line.any { it.isLetter() }
+            }?.let(MerchantNameValidator::clean)
         }
 
         val best = candidates.maxByOrNull { line ->
@@ -36,7 +42,7 @@ object MerchantExtractor {
             score
         } ?: return null
 
-        return MerchantNameValidator.clean(toVietnameseTitleCase(best))
+        return toVietnameseTitleCase(best)
     }
 
     fun toVietnameseTitleCase(raw: String): String {
