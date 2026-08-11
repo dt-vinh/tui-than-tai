@@ -6,8 +6,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import com.phuongnn14.tuithantai.BuildConfig
-import com.phuongnn14.tuithantai.capture.AmountExtractor
-import com.phuongnn14.tuithantai.capture.ReceiptTableInterpreter
+import com.phuongnn14.tuithantai.capture.ReceiptLayoutReconstructor
+import com.phuongnn14.tuithantai.capture.SemanticAmountSelector
 import com.phuongnn14.tuithantai.data.CategoryEntity
 import com.phuongnn14.tuithantai.ocr.DocumentType
 import com.phuongnn14.tuithantai.ocr.MoneyParser
@@ -48,8 +48,9 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
 
     companion object {
         private const val TAG = "ExpenseAnalyzer"
-        /** Max image side for Gemini — keeps token cost low */
-        private const val GEMINI_MAX_SIDE = 768
+        /** Receipt text becomes unreliable when a tall camera image is reduced below this size. */
+        private const val GEMINI_MAX_SIDE = 1800
+        private const val LABEL_MAX_SIDE = 768
     }
 
     private val ocrAnalyzer = OcrAnalyzer()
@@ -71,12 +72,15 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
             .onFailure { Log.e(TAG, "MLKit OCR failed: ${it.message}") }
         val engineResult = engineAttempt.getOrNull()
         val rawOcrText = engineResult?.rawText.orEmpty()
+        val reconstructedOcrText = engineResult?.let {
+            ReceiptLayoutReconstructor.reconstruct(it.lines, it.rawText)
+        }.orEmpty()
 
         // ── STAGE 1: Gemini Vision + reconstructed OCR table ─────────────────
         if (BuildConfig.GEMINI_API_KEY.isNotBlank()) {
             val t0 = System.currentTimeMillis()
             val geminiResult = runCatching {
-                gemini.analyze(scaleBitmap(bitmap, GEMINI_MAX_SIDE), rawOcrText)
+                gemini.analyze(scaleBitmap(bitmap, GEMINI_MAX_SIDE), reconstructedOcrText)
             }
                 .onFailure { Log.w(TAG, "Gemini primary exception: ${it.message}") }
                 .getOrNull()
@@ -88,10 +92,11 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                     "cat=${geminiResult.categoryId} needsReview=${geminiResult.needsUserReview}")
                 return ExpenseSuggestion(
                     title        = geminiResult.merchantName?.takeIf { it.isNotBlank() } ?: "",
-                    amount       = ReceiptTableInterpreter.resolveFinalAmount(rawOcrText)?.amount
-                        ?: geminiResult.totalAmount?.toLong()
-                        ?: AmountExtractor.extract(rawOcrText)?.amount
-                        ?: 0L,
+                    amount       = SemanticAmountSelector.select(
+                        semanticModelAmount = geminiResult.totalAmount?.toLong(),
+                        reconstructedOcrText = reconstructedOcrText,
+                        rawOcrText = rawOcrText
+                    ),
                     categoryId   = geminiResult.categoryId,
                     ocrText      = rawOcrText,
                     labels       = emptyList(),
@@ -109,7 +114,7 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
 
         // ── STAGE 2: MLKit OCR + SmartTotalResolver ───────────────────────────
         if (engineResult == null) {
-            val labels = imageLabelAnalyzer.label(scaleBitmap(bitmap, GEMINI_MAX_SIDE))
+            val labels = imageLabelAnalyzer.label(scaleBitmap(bitmap, LABEL_MAX_SIDE))
             val objectSuggestion = ObjectCategoryClassifier.classify(labels)
             return ExpenseSuggestion(
                 title = objectSuggestion.title,
@@ -141,7 +146,7 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
             result.totalAmount == null ||
             result.documentType == DocumentType.NOT_RECEIPT
         val labels = if (shouldLabelImage) {
-            imageLabelAnalyzer.label(scaleBitmap(bitmap, GEMINI_MAX_SIDE))
+            imageLabelAnalyzer.label(scaleBitmap(bitmap, LABEL_MAX_SIDE))
         } else {
             emptyList()
         }
@@ -152,10 +157,11 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                 objectSuggestion.categoryId
             else -> result.categoryId
         }
-        val semanticAmount = ReceiptTableInterpreter.resolveFinalAmount(engineResult.rawText)?.amount
-            ?: result.totalAmount?.toLong()
-            ?: AmountExtractor.extract(engineResult.rawText)?.amount
-            ?: 0L
+        val semanticAmount = SemanticAmountSelector.select(
+            semanticModelAmount = null,
+            reconstructedOcrText = reconstructedOcrText,
+            rawOcrText = engineResult.rawText
+        )
 
         return ExpenseSuggestion(
             title        = result.merchantName

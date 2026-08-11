@@ -7,14 +7,14 @@ object ReceiptTableInterpreter {
     )
 
     private val totalRoles = listOf(
-        "tien can thanh toan" to 120,
-        "tong thanh toan" to 115,
-        "thanh toan" to 110,
-        "tong tien hang" to 105,
-        "tong so tien" to 105,
-        "tong cong" to 100,
-        "phai tra" to 100,
-        "tong tien" to 95,
+        "tien can thanh toan" to 145,
+        "tong thanh toan" to 140,
+        "thanh toan" to 130,
+        "tong tien hang" to 70,
+        "tong so tien" to 120,
+        "tong cong" to 135,
+        "phai tra" to 130,
+        "tong tien" to 120,
         "amount payable" to 110,
         "balance due" to 105,
         "total due" to 105,
@@ -60,7 +60,7 @@ object ReceiptTableInterpreter {
         "ยอดชำระ" to 115,
         "ยอดสุทธิ" to 110,
         "รวมทั้งสิ้น" to 105,
-        "thanh tien" to 80,
+        "thanh tien" to 70,
         "total" to 80
     )
 

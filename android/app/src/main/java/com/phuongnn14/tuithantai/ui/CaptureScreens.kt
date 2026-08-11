@@ -181,8 +181,8 @@ fun MoneyScanCameraScreen(
         }
         val local = MoneyPresenceDetector.detect(rawText, uri.toString())
             ?: MoneyPresenceDetector.uncertainDraft(rawText, uri.toString())
-        val amount = ReceiptTableInterpreter.resolveFinalAmount(rawText)?.amount
-            ?: suggestion.amount.takeIf { it > 0L }
+        val amount = suggestion.amount.takeIf { it > 0L }
+            ?: ReceiptTableInterpreter.resolveFinalAmount(rawText)?.amount
             ?: local.amount
             ?: AmountExtractor.extract(rawText)?.amount
             ?: 0L

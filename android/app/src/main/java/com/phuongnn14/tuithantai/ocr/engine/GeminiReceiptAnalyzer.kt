@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -44,18 +45,22 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
             return null
         }
         return withContext(Dispatchers.IO) {
-            for ((index, key) in apiKeys.withIndex()) {
-                val result = runCatching { callGemini(bitmap, rawOcrText, key) }
-                    .onFailure { Log.e(TAG, "Gemini key ${index + 1} failed: ${it.message}") }
-                    .getOrNull()
-                if (result != null) return@withContext result
+            keyLoop@ for ((index, key) in apiKeys.withIndex()) {
+                for (attempt in 0..1) {
+                    try {
+                        return@withContext callGemini(bitmap, rawOcrText, key)
+                    } catch (error: Exception) {
+                        Log.e(TAG, "Gemini key ${index + 1}, attempt ${attempt + 1} failed: ${error.message}")
+                        if (!isRetryable(error) || attempt == 1) continue@keyLoop
+                    }
+                }
             }
             null
         }
     }
 
     private fun callGemini(bitmap: Bitmap, rawOcrText: String, apiKey: String): OcrResult {
-        val jpegBase64 = bitmapToBase64(bitmap, maxSide = 1280)
+        val jpegBase64 = bitmapToBase64(bitmap, maxSide = 1800)
         val receiptTable = ReceiptTableInterpreter.toMarkdown(rawOcrText)
         val prompt = "$SYSTEM_PROMPT\n\nML KIT OCR RECONSTRUCTED AS MARKDOWN TABLE:\n$receiptTable"
 
@@ -80,18 +85,18 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
             // Force JSON output
             put("generationConfig", JSONObject().apply {
                 put("response_mime_type", "application/json")
-                put("temperature", 0.0)
             })
         }
 
         val start = System.currentTimeMillis()
-        val url = URL("$ENDPOINT?key=$apiKey")
+        val url = URL(ENDPOINT)
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
         conn.connectTimeout = 20_000
-        conn.readTimeout = 30_000
+        conn.readTimeout = 60_000
         conn.doOutput = true
         conn.setRequestProperty("Content-Type", "application/json")
+        conn.setRequestProperty("x-goog-api-key", apiKey)
 
         conn.outputStream.use { it.write(requestBody.toString().toByteArray(Charsets.UTF_8)) }
 
@@ -100,13 +105,18 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
             conn.inputStream.bufferedReader().use { it.readText() }
         } else {
             val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            error("Gemini HTTP $code: $err")
+            throw GeminiHttpException(code, "Gemini HTTP $code: $err")
         }
         val elapsed = System.currentTimeMillis() - start
         Log.d(TAG, "Gemini response in ${elapsed}ms, body length=${text.length}")
 
         return parseGeminiResponse(text, rawOcrText)
     }
+
+    private fun isRetryable(error: Exception): Boolean =
+        error !is GeminiHttpException || error.statusCode == 429 || error.statusCode >= 500
+
+    private class GeminiHttpException(val statusCode: Int, message: String) : IOException(message)
 
     private fun parseGeminiResponse(responseText: String, rawOcrText: String): OcrResult {
         val root = JSONObject(responseText)
@@ -212,8 +222,9 @@ RULES:
 2. Never hallucinate product names. If a name is unclear, set name="" and needs_review=true.
 3. Never fill item names with: "Không xác định", "Khác", "Hàng hóa", "Vật phẩm", "Sản phẩm", "Receipt", "Bill".
 4. Interpret each OCR line as one table row. Product rows may contain product name, discount, unit price and line total. Keep those monetary cells attached to the same row.
-5. Select FINAL PAYABLE AMOUNT by meaning, not confidence scoring. Priority labels: TIỀN CẦN THANH TOÁN, TỔNG THANH TOÁN, THANH TOÁN, TỔNG TIỀN HÀNG, TỔNG SỐ TIỀN, TỔNG CỘNG, PHẢI TRẢ, TỔNG TIỀN, GRAND TOTAL, AMOUNT DUE.
+5. Select FINAL PAYABLE AMOUNT by meaning, not confidence scoring. Final labels include: TIỀN CẦN THANH TOÁN, TỔNG THANH TOÁN, THANH TOÁN, TỔNG CỘNG, PHẢI TRẢ, TỔNG TIỀN, GRAND TOTAL, AMOUNT DUE.
 5a. Apply the same semantic rule in every language. Examples: 应付金额/实付金额/总计 (Chinese), お支払金額/合計 (Japanese), 결제금액/합계 (Korean), कुल देय/देय राशि (Hindi), total a pagar, net à payer, zu zahlen, totale da pagare, valor total, jumlah bayar, ยอดชำระ/ยอดสุทธิ.
+5b. TỔNG TIỀN HÀNG and THÀNH TIỀN are SUBTOTAL labels. When a receipt later applies discount, VAT, service charge or another adjustment, never return that subtotal; return the final payable row after the adjustments. Example: `Tổng tiền hàng 395,000`, `VAT 31,600`, `Tổng cộng 426,600` means total_amount=426600.
 6. On a total row with multiple monetary cells, negative values are discounts/adjustments and the LAST POSITIVE monetary cell is the payable total. Example: `TỔNG TIỀN HÀNG | -32.000 | 666.100` means total_amount=666100, never 32000.
 7. Do NOT select: cash received (Tiền nhận/Khách đưa), change (Tiền thừa), VAT only, discount, account balance, order ID, invoice number, serial number, phone number, quantity, date or time.
 7a. Discount/change exclusions also apply across languages, including 折扣/优惠/找零, 値引/割引/お釣り, 할인/거스름돈, छूट, descuento/cambio, remise/monnaie, Rabatt/Rückgeld, desconto/troco, ส่วนลด/เงินทอน.

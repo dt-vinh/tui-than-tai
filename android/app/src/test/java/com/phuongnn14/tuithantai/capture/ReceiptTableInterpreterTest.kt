@@ -98,4 +98,36 @@ class ReceiptTableInterpreterTest {
 
         assertEquals(10_000L, ReceiptTableInterpreter.resolveFinalAmount(text)?.amount)
     }
+
+    @Test
+    fun resolvesAllFourReportedVietnameseReceiptsBySemanticRole() {
+        val receipts = mapOf(
+            """
+                Thành tiền: 246,400 đ
+                Tiền chiết khấu: 35,280 đ
+                Tổng tiền: 211,120 đ
+                +Thanh toán (GRAB_ONLINE) 211,120 đ
+            """.trimIndent() to 211_120L,
+            """
+                TỔNG TIỀN HÀNG -32,000 666,100
+                Tiền cần thanh toán 666,100
+            """.trimIndent() to 666_100L,
+            """
+                Thành tiền: 134 000
+                Thanh Toán: 134 000
+                Tiền khách đưa: 134 000
+                Tiền thừa: 0
+            """.trimIndent() to 134_000L,
+            """
+                Tổng tiền hàng: 395,000
+                Chiết khấu:
+                Thu khác: VAT (8%): 31,600
+                Tổng cộng: 426,600
+            """.trimIndent() to 426_600L
+        )
+
+        receipts.forEach { (text, expected) ->
+            assertEquals(expected, ReceiptTableInterpreter.resolveFinalAmount(text)?.amount)
+        }
+    }
 }
