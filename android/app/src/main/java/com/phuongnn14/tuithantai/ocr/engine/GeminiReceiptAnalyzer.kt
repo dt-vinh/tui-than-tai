@@ -9,6 +9,7 @@ import com.phuongnn14.tuithantai.ocr.LineItem
 import com.phuongnn14.tuithantai.ocr.OcrResult
 import com.phuongnn14.tuithantai.ocr.TransactionType
 import com.phuongnn14.tuithantai.capture.ReceiptTableInterpreter
+import com.phuongnn14.tuithantai.capture.MerchantNameValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -20,8 +21,8 @@ import java.net.URL
 
 /**
  * Gemini Vision semantic layer for receipt analysis.
- * Receives image pixels plus the on-device OCR table and uses Gemini 3.6 Flash
- * to reconstruct multilingual receipt rows before selecting the payable total.
+ * Receives image pixels plus the on-device OCR table. Flash-Lite handles the
+ * low-latency extraction path; Gemini 3.6 Flash remains the quality fallback.
  *
  * The prompt instructs Gemini to follow the casebook rules:
  *  - Return strict JSON (no markdown)
@@ -46,12 +47,19 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
         }
         return withContext(Dispatchers.IO) {
             keyLoop@ for ((index, key) in apiKeys.withIndex()) {
-                for (attempt in 0..1) {
-                    try {
-                        return@withContext callGemini(bitmap, rawOcrText, key)
-                    } catch (error: Exception) {
-                        Log.e(TAG, "Gemini key ${index + 1}, attempt ${attempt + 1} failed: ${error.message}")
-                        if (!isRetryable(error) || attempt == 1) continue@keyLoop
+                for (model in MODELS) {
+                    val maxAttempts = if (model == MODELS.first()) 2 else 1
+                    for (attempt in 1..maxAttempts) {
+                        try {
+                            val result = callGemini(bitmap, rawOcrText, key, model)
+                            if ((result.totalAmount ?: 0.0) > 0.0) return@withContext result
+                        } catch (error: Exception) {
+                            Log.e(
+                                TAG,
+                                "Gemini ${model.id}, key ${index + 1}, attempt $attempt failed: ${error.message}"
+                            )
+                            if (!isRetryable(error)) continue@keyLoop
+                        }
                     }
                 }
             }
@@ -59,7 +67,12 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
         }
     }
 
-    private fun callGemini(bitmap: Bitmap, rawOcrText: String, apiKey: String): OcrResult {
+    private fun callGemini(
+        bitmap: Bitmap,
+        rawOcrText: String,
+        apiKey: String,
+        model: ModelConfig
+    ): OcrResult {
         val jpegBase64 = bitmapToBase64(bitmap, maxSide = 1800)
         val receiptTable = ReceiptTableInterpreter.toMarkdown(rawOcrText)
         val prompt = "$SYSTEM_PROMPT\n\nML KIT OCR RECONSTRUCTED AS MARKDOWN TABLE:\n$receiptTable"
@@ -85,15 +98,19 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
             // Force JSON output
             put("generationConfig", JSONObject().apply {
                 put("response_mime_type", "application/json")
+                put("maxOutputTokens", 4096)
+                put("thinkingConfig", JSONObject().apply {
+                    put("thinkingLevel", model.thinkingLevel)
+                })
             })
         }
 
         val start = System.currentTimeMillis()
-        val url = URL(ENDPOINT)
+        val url = URL("$API_ROOT/${model.id}:generateContent")
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
         conn.connectTimeout = 20_000
-        conn.readTimeout = 60_000
+        conn.readTimeout = model.readTimeoutMs
         conn.doOutput = true
         conn.setRequestProperty("Content-Type", "application/json")
         conn.setRequestProperty("x-goog-api-key", apiKey)
@@ -173,7 +190,9 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
         return OcrResult(
             documentType = docType,
             transactionType = txType,
-            merchantName = j.optString("merchant_name").takeIf { it.isNotBlank() && it !in FORBIDDEN_NAMES },
+            merchantName = MerchantNameValidator.clean(
+                j.optString("merchant_name").takeIf { it.isNotBlank() && it !in FORBIDDEN_NAMES }
+            ),
             counterpartyName = j.optString("counterparty_name").takeIf { it.isNotBlank() },
             categoryId = j.optString("category_id", "other").ifBlank { "other" },
             currency = j.optString("currency", "VND").ifBlank { "VND" },
@@ -200,8 +219,17 @@ class GeminiReceiptAnalyzer(private val apiKey: String) {
     }
 
     companion object {
-        private const val ENDPOINT =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+        private const val API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
+        private val MODELS = listOf(
+            ModelConfig("gemini-3.5-flash-lite", "minimal", 30_000),
+            ModelConfig("gemini-3.6-flash", "low", 60_000)
+        )
+
+        private data class ModelConfig(
+            val id: String,
+            val thinkingLevel: String,
+            val readTimeoutMs: Int
+        )
 
         private val FORBIDDEN_NAMES = setOf(
             "Không xác định", "Khác", "Hàng hóa", "Vật phẩm",
@@ -220,8 +248,10 @@ TASK: Read the image and the supplied ML Kit Markdown table together. Reconstruc
 RULES:
 1. Return strict JSON only — no markdown, no explanation, no code block.
 2. Never hallucinate product names. If a name is unclear, set name="" and needs_review=true.
+2a. Never use a street address, phone number, receipt title or invoice title as merchant_name. If no actual shop/brand name is visible, set merchant_name=null. Example: `145 Hoàng Cầu` is an address, not a merchant.
 3. Never fill item names with: "Không xác định", "Khác", "Hàng hóa", "Vật phẩm", "Sản phẩm", "Receipt", "Bill".
 4. Interpret each OCR line as one table row. Product rows may contain product name, discount, unit price and line total. Keep those monetary cells attached to the same row.
+4a. Analyze every row internally, but return at most 8 representative items in the JSON. Accurate final amount, merchant and category are more important than listing every product on a long supermarket receipt.
 5. Select FINAL PAYABLE AMOUNT by meaning, not confidence scoring. Final labels include: TIỀN CẦN THANH TOÁN, TỔNG THANH TOÁN, THANH TOÁN, TỔNG CỘNG, PHẢI TRẢ, TỔNG TIỀN, GRAND TOTAL, AMOUNT DUE.
 5a. Apply the same semantic rule in every language. Examples: 应付金额/实付金额/总计 (Chinese), お支払金額/合計 (Japanese), 결제금액/합계 (Korean), कुल देय/देय राशि (Hindi), total a pagar, net à payer, zu zahlen, totale da pagare, valor total, jumlah bayar, ยอดชำระ/ยอดสุทธิ.
 5b. TỔNG TIỀN HÀNG and THÀNH TIỀN are SUBTOTAL labels. When a receipt later applies discount, VAT, service charge or another adjustment, never return that subtotal; return the final payable row after the adjustments. Example: `Tổng tiền hàng 395,000`, `VAT 31,600`, `Tổng cộng 426,600` means total_amount=426600.
@@ -232,6 +262,8 @@ RULES:
 9. For VND: output integer without decimal (e.g. 40000 not 40000.0).
 10. For USD: output with 2 decimal places (e.g. 12.50).
 11. Category classification: line items 70% weight > merchant 20% > document title 10%.
+11a. food_and_drink means prepared meals or drinks bought from a restaurant, cafe or food-service venue. Packaged groceries bought at a supermarket or convenience store such as WinMart belong to shopping, even when the products are food.
+11b. A zero-priced row prefixed with `+` or `-` such as `+ Sữa Tươi 0` is a modifier of the previous product, not a separate item.
 12. If merchant is a sports venue but items are food/drink → category = food_and_drink.
 13. BANKNOTE / CURRENCY NOTE: If the image is a physical banknote or currency note, use the face value printed on the note.
 14. PRICE TAG / PRODUCT LABEL: use the clearly displayed selling price.

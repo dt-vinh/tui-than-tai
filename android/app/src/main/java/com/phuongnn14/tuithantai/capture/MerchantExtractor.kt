@@ -36,7 +36,7 @@ object MerchantExtractor {
             score
         } ?: return null
 
-        return toVietnameseTitleCase(best)
+        return MerchantNameValidator.clean(toVietnameseTitleCase(best))
     }
 
     fun toVietnameseTitleCase(raw: String): String {
