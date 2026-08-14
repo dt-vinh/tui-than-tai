@@ -1,0 +1,7 @@
+Model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+Source: https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+Runtime asset: quantized ONNX INT8
+License: Apache License 2.0
+License text: https://www.apache.org/licenses/LICENSE-2.0
+
+The tokenizer is distributed with the same model and license.

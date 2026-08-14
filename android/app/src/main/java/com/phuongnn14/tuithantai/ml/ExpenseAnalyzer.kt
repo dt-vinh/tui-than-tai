@@ -5,16 +5,14 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
-import com.phuongnn14.tuithantai.BuildConfig
 import com.phuongnn14.tuithantai.capture.ReceiptLayoutReconstructor
 import com.phuongnn14.tuithantai.capture.SemanticAmountSelector
 import com.phuongnn14.tuithantai.data.CategoryEntity
 import com.phuongnn14.tuithantai.ocr.DocumentType
 import com.phuongnn14.tuithantai.ocr.MoneyParser
 import com.phuongnn14.tuithantai.ocr.OcrAnalyzer
-import com.phuongnn14.tuithantai.ocr.OcrResult
-import com.phuongnn14.tuithantai.ocr.engine.GeminiReceiptAnalyzer
 import com.phuongnn14.tuithantai.ocr.engine.OcrEngineSelector
+import com.phuongnn14.tuithantai.ocr.local.LocalReceiptAnalyzer
 import java.text.Normalizer
 
 data class ExpenseSuggestion(
@@ -31,31 +29,20 @@ data class ExpenseSuggestion(
 )
 
 /**
- * Two-stage OCR pipeline:
+ * Two-stage offline OCR pipeline:
  *
- * STAGE 1 — ML Kit OCR + Gemini semantic reconstruction
- *   • ML Kit preserves the visible OCR text for review and builds receipt rows
- *   • Gemini receives both image pixels and a Markdown table of those rows
- *   • Final amount is selected by total-row meaning, not a confidence threshold
- *
- * STAGE 2 — ML Kit + semantic row resolver (offline fallback)
- *   • Runs when Gemini is unavailable (no network / API error / blank key)
- *   • Language-agnostic: currency-symbol detection + positional scoring
- *     + frequency-penalty (unit prices repeat, total doesn't)
- *   • Always returns a numeric amount; 0 means no monetary value was found
+ * STAGE 1 - ML Kit OCR + bundled multilingual MiniLM semantic reconstruction
+ * STAGE 2 - deterministic receipt resolver if the local model fails validation.
  */
 class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
 
     companion object {
         private const val TAG = "ExpenseAnalyzer"
-        /** Receipt text becomes unreliable when a tall camera image is reduced below this size. */
-        private const val GEMINI_MAX_SIDE = 1800
         private const val LABEL_MAX_SIDE = 768
     }
 
     private val ocrAnalyzer = OcrAnalyzer()
     private val imageLabelAnalyzer by lazy { ImageLabelAnalyzer() }
-    private val gemini by lazy { GeminiReceiptAnalyzer(BuildConfig.GEMINI_API_KEY) }
 
     suspend fun analyze(
         context: Context,
@@ -76,43 +63,41 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
             ReceiptLayoutReconstructor.reconstruct(it.lines, it.rawText)
         }.orEmpty()
 
-        // ── STAGE 1: Gemini Vision + reconstructed OCR table ─────────────────
-        if (BuildConfig.GEMINI_API_KEY.isNotBlank()) {
-            val t0 = System.currentTimeMillis()
-            val geminiResult = runCatching {
-                gemini.analyze(scaleBitmap(bitmap, GEMINI_MAX_SIDE), reconstructedOcrText)
-            }
-                .onFailure { Log.w(TAG, "Gemini primary exception: ${it.message}") }
-                .getOrNull()
-
-            if (geminiResult != null) {
-                val elapsed = System.currentTimeMillis() - t0
-                Log.d(TAG, "Gemini primary OK in ${elapsed}ms: " +
-                    "total=${geminiResult.totalAmount} conf=${geminiResult.confidence} " +
-                    "cat=${geminiResult.categoryId} needsReview=${geminiResult.needsUserReview}")
+        // Bundled multilingual MiniLM is primary and requires no network or translation pack.
+        if (reconstructedOcrText.isNotBlank()) {
+            val localStart = System.currentTimeMillis()
+            val localResult = runCatching {
+                LocalReceiptAnalyzer(context.applicationContext).analyze(reconstructedOcrText)
+            }.onFailure { Log.w(TAG, "Local MiniLM exception: ${it.message}") }.getOrNull()
+            if (localResult != null) {
+                val semanticElapsed = System.currentTimeMillis() - localStart
+                val totalElapsed = System.currentTimeMillis() - t1
+                Log.d(
+                    TAG,
+                    "Local MiniLM OK: ocr=${engineResult?.elapsedMs ?: 0}ms " +
+                        "semantic=${semanticElapsed}ms total=${totalElapsed}ms " +
+                        "amount=${localResult.totalAmount} cat=${localResult.categoryId}"
+                )
                 return ExpenseSuggestion(
-                    title        = geminiResult.merchantName?.takeIf { it.isNotBlank() } ?: "",
-                    amount       = SemanticAmountSelector.select(
-                        semanticModelAmount = geminiResult.totalAmount?.toLong(),
+                    title = localResult.merchantName.orEmpty(),
+                    amount = SemanticAmountSelector.select(
+                        semanticModelAmount = localResult.totalAmount?.toLong(),
                         reconstructedOcrText = reconstructedOcrText,
                         rawOcrText = rawOcrText
                     ),
-                    categoryId   = geminiResult.categoryId,
-                    ocrText      = rawOcrText,
-                    labels       = emptyList(),
-                    needsReview  = false,
+                    categoryId = localResult.categoryId,
+                    ocrText = rawOcrText,
+                    labels = emptyList(),
+                    needsReview = false,
                     reviewFields = emptyList(),
-                    ocrEngine    = "gemini-primary",
-                    ocrConfidence = geminiResult.confidence.toFloat(),
-                    ocrElapsedMs  = elapsed
+                    ocrEngine = "mlkit+minilm-multilingual-local",
+                    ocrConfidence = localResult.confidence.toFloat(),
+                    ocrElapsedMs = totalElapsed
                 )
             }
-            Log.w(TAG, "Gemini primary returned null — falling back to MLKit+SmartResolver")
-        } else {
-            Log.d(TAG, "Gemini API key not set — using MLKit+SmartResolver directly")
         }
 
-        // ── STAGE 2: MLKit OCR + SmartTotalResolver ───────────────────────────
+        // Final offline fallback: deterministic semantic-row resolver.
         if (engineResult == null) {
             val labels = imageLabelAnalyzer.label(scaleBitmap(bitmap, LABEL_MAX_SIDE))
             val objectSuggestion = ObjectCategoryClassifier.classify(labels)

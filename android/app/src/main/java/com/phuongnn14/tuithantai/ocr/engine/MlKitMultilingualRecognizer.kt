@@ -10,6 +10,8 @@ import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.phuongnn14.tuithantai.capture.ReceiptTableInterpreter
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.tasks.await
 
 /** Runs the bundled ML Kit script models after capture and keeps the richest result. */
@@ -33,13 +35,36 @@ object MlKitMultilingualRecognizer {
     }
 
     suspend fun recognize(image: InputImage): Result {
-        val results = recognizers.mapNotNull { model ->
-            runCatching { Result(model.name, model.recognizer.process(image).await()) }.getOrNull()
+        val latin = recognizers.first()
+        val latinResult = runCatching {
+            Result(latin.name, latin.recognizer.process(image).await())
+        }.getOrNull()
+        if (latinResult != null && isGoodLatinResult(latinResult.text)) return latinResult
+
+        val remaining = coroutineScope {
+            recognizers.drop(1).map { model ->
+                async {
+                    runCatching { Result(model.name, model.recognizer.process(image).await()) }
+                        .getOrNull()
+                }
+            }.mapNotNull { it.await() }
         }
+        val results = listOfNotNull(latinResult) + remaining
         return results.maxByOrNull { result ->
             val model = recognizers.first { it.name == result.script }
             qualityScore(result.text, model.nativeCharacter)
         } ?: error("No ML Kit text recognizer completed successfully")
+    }
+
+    private fun isGoodLatinResult(text: Text): Boolean {
+        val raw = text.text
+        val latinLetters = raw.count(::isLatin)
+        val readable = raw.count { it.isLetterOrDigit() }
+        val nonLatinLetters = raw.count { it.isLetter() && !isLatin(it) }
+        val hasReceiptTotal = ReceiptTableInterpreter.resolveFinalAmount(raw) != null
+        val clearlyLatinDocument = latinLetters >= 12 && readable >= 30 &&
+            latinLetters >= nonLatinLetters * 3
+        return hasReceiptTotal || clearlyLatinDocument
     }
 
     private fun qualityScore(text: Text, nativeCharacter: (Char) -> Boolean): Int {

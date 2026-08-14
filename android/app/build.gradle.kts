@@ -4,6 +4,7 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
     id("com.google.gms.google-services")
 }
@@ -40,6 +41,7 @@ fun String.asBuildConfigString(): String =
 val geminiApiKeys: String =
     localProps.getProperty("gemini.api.keys")
         ?: localProps.getProperty("gemini.api.key", "")
+val isDeviceBenchmark = providers.gradleProperty("deviceBenchmark").orNull == "true"
 
 fun signingValue(name: String, envName: String): String? =
     uploadSigningProps.getProperty(name)
@@ -88,6 +90,19 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (isDeviceBenchmark) {
+                applicationIdSuffix = ".dev"
+                versionNameSuffix = "-dev"
+                resValue("string", "google_app_id", "benchmark")
+                resValue("string", "gcm_defaultSenderId", "benchmark")
+                resValue("string", "default_web_client_id", "benchmark")
+                resValue("string", "google_api_key", "benchmark")
+                resValue("string", "google_crash_reporting_api_key", "benchmark")
+                resValue("string", "google_storage_bucket", "benchmark")
+                resValue("string", "project_id", "benchmark")
+            }
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -105,10 +120,6 @@ android {
         buildConfig = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
-
     kotlinOptions {
         jvmTarget = "17"
     }
@@ -120,6 +131,16 @@ android {
 
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    }
+
+    androidResources {
+        noCompress += "onnx"
+    }
+}
+
+if (isDeviceBenchmark) {
+    tasks.configureEach {
+        if (name == "processDebugGoogleServices") enabled = false
     }
 }
 
@@ -146,9 +167,9 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
 
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-runtime:2.7.2")
+    implementation("androidx.room:room-ktx:2.7.2")
+    ksp("androidx.room:room-compiler:2.7.2")
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
@@ -162,11 +183,17 @@ dependencies {
     implementation("com.google.mlkit:text-recognition-korean:16.0.1")
     implementation("com.google.mlkit:image-labeling:17.0.9")
 
+    // Quantized multilingual semantic model and its fully offline tokenizer.
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
+    implementation("ai.djl.huggingface:tokenizers:0.33.0")
+    runtimeOnly("ai.djl.android:tokenizer-native:0.33.0")
+
     // Google Sign-In + Drive backup
     implementation("com.google.android.gms:play-services-auth:21.2.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20250517")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }
