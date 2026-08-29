@@ -68,8 +68,8 @@ android {
         applicationId = "com.stevejobvnAIstudio.tuithantai"
         minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "0.18.0"
+        versionCode = 19
+        versionName = "0.19.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "DEFAULT_API_BASE_URL", "\"https://api.your-domain.com\"")
         buildConfigField(
