@@ -25,7 +25,8 @@ object AmountExtractor {
         "qty", "sl/tl", "so luong", "tong sl", "sl san pham", "ma don",
         "ma don hang", "order id", "barcode", "qr", "khoi luong",
         "trong luong", "can nang", "kich thuoc", "chieu dai", "chieu rong",
-        "chieu cao", "toi da", "maximum weight", "weight", "gram", "grams"
+        "chieu cao", "toi da", "maximum weight", "weight", "gram", "grams",
+        "tong dai", "hotline", "lien he", "bao hanh", "gop y"
     )
 
     private val amountPattern = Regex(
@@ -121,6 +122,7 @@ object AmountExtractor {
     ): Boolean {
         val line = lines[index]
         if (amount < 1_000L) return true
+        if (ReceiptTableInterpreter.isHardExcludedLine(line)) return true
         val previousNormLine = lines.getOrNull(index - 1)?.let { normalize(it) }.orEmpty()
         val currentHasTrustedPayableKeyword = hasTrustedPayableKeyword(normLine)
         if (excludeKeywords.any { normLine.contains(it) }) return true

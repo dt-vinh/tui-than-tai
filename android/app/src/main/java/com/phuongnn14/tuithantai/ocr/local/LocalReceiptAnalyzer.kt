@@ -9,9 +9,12 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.phuongnn14.tuithantai.capture.AmountExtractor
 import com.phuongnn14.tuithantai.capture.MerchantExtractor
 import com.phuongnn14.tuithantai.capture.MerchantNameValidator
 import com.phuongnn14.tuithantai.capture.ProductNoteExtractor
+import com.phuongnn14.tuithantai.capture.ReceiptDocument
+import com.phuongnn14.tuithantai.capture.ReceiptTableInterpreter
 import com.phuongnn14.tuithantai.ocr.OcrAnalyzer
 import com.phuongnn14.tuithantai.ocr.OcrResult
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +27,7 @@ import kotlin.math.sqrt
 
 /** Uses a bundled multilingual transformer to understand OCR lines without a network call. */
 class LocalReceiptAnalyzer(private val context: Context) {
-    suspend fun analyze(rawOcrText: String): OcrResult? {
+    suspend fun analyze(rawOcrText: String, receiptDocument: ReceiptDocument? = null): OcrResult? {
         if (rawOcrText.isBlank()) return null
         val candidates = LocalAmountCandidates.extract(rawOcrText)
         if (candidates.isEmpty()) return null
@@ -52,18 +55,24 @@ class LocalReceiptAnalyzer(private val context: Context) {
                 }
                 val semantic = LocalMiniLmRuntime.analyze(
                     context.applicationContext,
-                    candidates,
                     classificationText
                 )
+                val structuredAmount = receiptDocument
+                    ?.let(ReceiptTableInterpreter::resolveFinalAmount)
+                    ?: ReceiptTableInterpreter.resolveFinalAmount(rawOcrText)
+                    ?: AmountExtractor.extract(rawOcrText)
+                val selectedAmount = structuredAmount?.amount?.toDouble() ?: 0.0
+                val needsReview = selectedAmount <= 0.0
                 base.copy(
                     merchantName = merchant,
                     categoryId = semantic.categoryId,
-                    totalAmount = semantic.amount.amount,
-                    confidence = 0.90,
-                    needsUserReview = false,
-                    reviewFields = emptyList(),
-                    reason = "Offline multilingual MiniLM selected the payable row by meaning: " +
-                        "${semantic.amount.sourceLine} (score=${"%.3f".format(semantic.amountScore)})"
+                    totalAmount = selectedAmount,
+                    confidence = structuredAmount?.confidence?.toDouble()
+                        ?: base.confidence.coerceIn(0.35, 0.90),
+                    needsUserReview = needsReview,
+                    reviewFields = if (needsReview) listOf("totalAmount") else emptyList(),
+                    reason = structuredAmount?.reason
+                        ?: "No payable row survived deterministic receipt guards"
                 )
             }.onFailure { Log.w(TAG, "Local MiniLM analysis failed", it) }
                 .getOrNull()
@@ -108,6 +117,10 @@ internal object LocalAmountCandidates {
         val lines = text.lineSequence().map(String::trim).filter(String::isNotBlank).toList()
         val found = mutableListOf<LocalAmountCandidate>()
         lines.forEachIndexed { lineIndex, line ->
+            if (ReceiptTableInterpreter.isHardExcludedLine(line)) return@forEachIndexed
+            if (lineNeedsContext(line) &&
+                lines.getOrNull(lineIndex - 1)?.let(ReceiptTableInterpreter::isHardExcludedLine) == true
+            ) return@forEachIndexed
             val excludedRanges = dateOrTime.findAll(line).map { it.range }.toList()
             token.findAll(line).forEach tokenLoop@{ match ->
                 val raw = match.value.trim()
@@ -173,8 +186,6 @@ internal object LocalAmountCandidates {
 }
 
 private data class SemanticSelection(
-    val amount: LocalAmountCandidate,
-    val amountScore: Float,
     val categoryId: String
 )
 
@@ -182,10 +193,6 @@ private object LocalMiniLmRuntime {
     private const val EMBEDDING_SIZE = 384
     private const val PAD_TOKEN_ID = 1L
     private const val RELEASE_AFTER_MS = 30_000L
-    private val amountQueries = listOf(
-        "Số tiền cuối cùng khách hàng thực tế phải trả sau mọi giảm giá",
-        "The final amount the customer actually has to pay after all discounts"
-    )
     private val categoryPrompts = linkedMapOf(
         "food" to listOf(
             "Nhà hàng, quán ăn, quán cafe; menu món được chế biến và phục vụ để dùng ngay",
@@ -219,47 +226,26 @@ private object LocalMiniLmRuntime {
 
     fun analyze(
         context: Context,
-        candidates: List<LocalAmountCandidate>,
         classificationText: String
     ): SemanticSelection = synchronized(lock) {
         handler.removeCallbacks(release)
         val ready = state ?: RuntimeState.create(context).also { state = it }
         try {
-            val lineCandidates = candidates.groupBy { it.semanticText }.values.map { it.last() }
             val flatCategoryPrompts = categoryPrompts.flatMap { (category, prompts) ->
                 prompts.map { category to it }
             }
-            val texts = amountQueries + lineCandidates.map { it.semanticText } +
-                flatCategoryPrompts.map { it.second } + classificationText
+            val texts = flatCategoryPrompts.map { it.second } + classificationText
             val vectors = ready.embed(texts)
-            val amountQuery = average(vectors.take(amountQueries.size))
-            val amountOffset = amountQueries.size
-            val amountScores = lineCandidates.indices.map { index ->
-                dot(amountQuery, vectors[amountOffset + index])
-            }
-            val bestAmountIndex = amountScores.indices.maxBy { amountScores[it] }
-
-            val categoryOffset = amountOffset + lineCandidates.size
             val receiptVector = vectors.last()
             val categoryScores = flatCategoryPrompts.mapIndexed { index, (category, _) ->
-                category to dot(receiptVector, vectors[categoryOffset + index])
+                category to dot(receiptVector, vectors[index])
             }.groupBy({ it.first }, { it.second })
                 .mapValues { (_, scores) -> scores.max() }
             val category = categoryScores.maxBy { it.value }.key
-            SemanticSelection(
-                amount = lineCandidates[bestAmountIndex],
-                amountScore = amountScores[bestAmountIndex],
-                categoryId = category
-            )
+            SemanticSelection(categoryId = category)
         } finally {
             handler.postDelayed(release, RELEASE_AFTER_MS)
         }
-    }
-
-    private fun average(vectors: List<FloatArray>): FloatArray {
-        val result = FloatArray(EMBEDDING_SIZE)
-        vectors.forEach { vector -> vector.indices.forEach { result[it] += vector[it] } }
-        return normalize(result)
     }
 
     private fun dot(left: FloatArray, right: FloatArray): Float =

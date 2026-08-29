@@ -39,6 +39,24 @@ class ReceiptLayoutReconstructorTest {
         assertEquals("Tổng tiền 211,120", rows[1])
     }
 
+    @Test
+    fun documentPreservesCellsAndColumnOrder() {
+        val document = ReceiptLayoutReconstructor.reconstructDocumentPositioned(
+            listOf(
+                line("Còn", 10f, 10f, 45f, 30f),
+                line("lại", 50f, 10f, 75f, 30f),
+                line("phải", 80f, 10f, 120f, 30f),
+                line("thu", 125f, 10f, 150f, 30f),
+                line("510,000", 240f, 10f, 310f, 30f)
+            )
+        )
+
+        assertEquals(1, document.rows.size)
+        assertEquals(5, document.rows.single().cells.size)
+        assertEquals("Còn lại phải thu 510,000", document.asText())
+        assertEquals(510_000L, ReceiptTableInterpreter.resolveFinalAmount(document)?.amount)
+    }
+
     private fun line(text: String, left: Float, top: Float, right: Float, bottom: Float) =
         ReceiptLayoutReconstructor.PositionedText(text, left, top, right, bottom)
 }

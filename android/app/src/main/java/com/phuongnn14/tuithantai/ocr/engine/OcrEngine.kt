@@ -26,6 +26,13 @@ data class OcrEngineResult(
 data class OcrLine(
     val text: String,
     val boundingBox: RectF?,
+    val confidence: Float?,
+    val elements: List<OcrElement> = emptyList()
+)
+
+data class OcrElement(
+    val text: String,
+    val boundingBox: RectF?,
     val confidence: Float?
 )
 

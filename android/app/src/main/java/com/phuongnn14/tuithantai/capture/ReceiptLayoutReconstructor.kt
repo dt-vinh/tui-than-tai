@@ -3,31 +3,87 @@ package com.phuongnn14.tuithantai.capture
 import com.phuongnn14.tuithantai.ocr.engine.OcrLine
 import kotlin.math.abs
 
-/** Rebuilds visual receipt rows from ML Kit line coordinates before semantic parsing. */
+data class ReceiptCell(
+    val text: String,
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+    val confidence: Float? = null
+)
+
+data class ReceiptRow(val cells: List<ReceiptCell>) {
+    val text: String = cells.sortedBy { it.left }.joinToString(" ") { it.text }.trim()
+}
+
+data class ReceiptDocument(
+    val rows: List<ReceiptRow>,
+    val fallbackText: String = ""
+) {
+    fun asText(): String = rows.joinToString("\n") { it.text }
+        .takeIf { it.isNotBlank() }
+        ?: fallbackText
+}
+
+/** Rebuilds visual receipt rows and cells from ML Kit coordinates before parsing. */
 object ReceiptLayoutReconstructor {
     data class PositionedText(
         val text: String,
         val left: Float,
         val top: Float,
         val right: Float,
-        val bottom: Float
+        val bottom: Float,
+        val confidence: Float? = null
     ) {
         val centerY: Float get() = (top + bottom) / 2f
         val height: Float get() = (bottom - top).coerceAtLeast(1f)
     }
 
-    fun reconstruct(lines: List<OcrLine>, fallbackText: String): String {
-        val positioned = lines.mapNotNull { line ->
-            val box = line.boundingBox ?: return@mapNotNull null
-            line.text.trim().takeIf { it.isNotEmpty() }?.let {
-                PositionedText(it, box.left, box.top, box.right, box.bottom)
+    fun reconstruct(lines: List<OcrLine>, fallbackText: String): String =
+        reconstructDocument(lines, fallbackText).asText()
+
+    fun reconstructDocument(lines: List<OcrLine>, fallbackText: String): ReceiptDocument {
+        val positionedElements = lines.flatMap { line ->
+            line.elements.mapNotNull { element ->
+                val box = element.boundingBox ?: return@mapNotNull null
+                element.text.trim().takeIf { it.isNotEmpty() }?.let { text ->
+                    PositionedText(
+                        text = text,
+                        left = box.left,
+                        top = box.top,
+                        right = box.right,
+                        bottom = box.bottom,
+                        confidence = element.confidence
+                    )
+                }
             }
         }
-        return reconstructPositioned(positioned).takeIf { it.isNotBlank() } ?: fallbackText
+        val positioned = positionedElements.ifEmpty {
+            lines.mapNotNull { line ->
+                val box = line.boundingBox ?: return@mapNotNull null
+                line.text.trim().takeIf { it.isNotEmpty() }?.let { text ->
+                    PositionedText(
+                        text = text,
+                        left = box.left,
+                        top = box.top,
+                        right = box.right,
+                        bottom = box.bottom,
+                        confidence = line.confidence
+                    )
+                }
+            }
+        }
+        return reconstructDocumentPositioned(positioned, fallbackText)
     }
 
-    internal fun reconstructPositioned(lines: List<PositionedText>): String {
-        if (lines.isEmpty()) return ""
+    internal fun reconstructPositioned(lines: List<PositionedText>): String =
+        reconstructDocumentPositioned(lines).asText()
+
+    internal fun reconstructDocumentPositioned(
+        lines: List<PositionedText>,
+        fallbackText: String = ""
+    ): ReceiptDocument {
+        if (lines.isEmpty()) return ReceiptDocument(emptyList(), fallbackText)
         val rows = mutableListOf<MutableList<PositionedText>>()
         lines.sortedWith(compareBy<PositionedText> { it.centerY }.thenBy { it.left }).forEach { line ->
             val row = rows.minByOrNull { candidate ->
@@ -35,11 +91,21 @@ object ReceiptLayoutReconstructor {
             }
             if (row != null && belongsToSameRow(row, line)) row += line else rows += mutableListOf(line)
         }
-        return rows
-            .sortedBy { row -> row.minOf { it.top } }
-            .joinToString("\n") { row ->
-                row.sortedBy { it.left }.joinToString(" ") { it.text }
-            }
+        val receiptRows = rows.sortedBy { row -> row.minOf { it.top } }.map { row ->
+            ReceiptRow(
+                row.sortedBy { it.left }.map { cell ->
+                    ReceiptCell(
+                        text = cell.text,
+                        left = cell.left,
+                        top = cell.top,
+                        right = cell.right,
+                        bottom = cell.bottom,
+                        confidence = cell.confidence
+                    )
+                }
+            )
+        }
+        return ReceiptDocument(receiptRows, fallbackText)
     }
 
     private fun belongsToSameRow(row: List<PositionedText>, line: PositionedText): Boolean {

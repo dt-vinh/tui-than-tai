@@ -28,7 +28,28 @@ class MlKitOcrEngine : OcrEngine {
                 }
                 val conf = line.elements.mapNotNull { it.confidence }.average()
                     .takeIf { it.isFinite() }?.toFloat()
-                lines.add(OcrLine(text = line.text, boundingBox = box, confidence = conf))
+                val elements = line.elements.map { element ->
+                    OcrElement(
+                        text = element.text,
+                        boundingBox = element.boundingBox?.let { elementBox ->
+                            RectF(
+                                elementBox.left.toFloat(),
+                                elementBox.top.toFloat(),
+                                elementBox.right.toFloat(),
+                                elementBox.bottom.toFloat()
+                            )
+                        },
+                        confidence = element.confidence
+                    )
+                }
+                lines.add(
+                    OcrLine(
+                        text = line.text,
+                        boundingBox = box,
+                        confidence = conf,
+                        elements = elements
+                    )
+                )
             }
         }
 

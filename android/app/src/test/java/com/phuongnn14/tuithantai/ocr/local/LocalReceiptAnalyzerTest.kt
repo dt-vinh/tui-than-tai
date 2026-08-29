@@ -6,7 +6,7 @@ import java.io.File
 
 class LocalReceiptAnalyzerTest {
     @Test
-    fun semanticModelCanOnlyRankAmountsPresentInOcr() {
+    fun semanticModelOnlyReceivesAmountsThatSurviveHardGuards() {
         val candidates = LocalAmountCandidates.extract(
             """
                 Total due 415,000 VND
@@ -15,7 +15,7 @@ class LocalReceiptAnalyzerTest {
             """.trimIndent()
         )
 
-        assertEquals(listOf(415_000L, 500_000L, 85_000L), candidates.map { it.amount.toLong() })
+        assertEquals(listOf(415_000L), candidates.map { it.amount.toLong() })
     }
 
     @Test
@@ -51,6 +51,20 @@ class LocalReceiptAnalyzerTest {
         )
 
         assertEquals(emptyList<LocalAmountCandidate>(), candidates)
+    }
+
+    @Test
+    fun discountsAndServicePhoneNumbersNeverReachMiniLm() {
+        val candidates = LocalAmountCandidates.extract(
+            """
+                Giảm giá 246.400
+                Tổng đài góp ý 1800 1063
+                Tổng đài bảo hành 1900.232.465
+                Thanh toán 527.600
+            """.trimIndent()
+        )
+
+        assertEquals(listOf(527_600L), candidates.map { it.amount.toLong() })
     }
 
     @Test

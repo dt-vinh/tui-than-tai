@@ -31,8 +31,8 @@ data class ExpenseSuggestion(
 /**
  * Two-stage offline OCR pipeline:
  *
- * STAGE 1 - ML Kit OCR + bundled multilingual MiniLM semantic reconstruction
- * STAGE 2 - deterministic receipt resolver if the local model fails validation.
+ * STAGE 1 - ML Kit OCR + deterministic row/column amount resolution
+ * STAGE 2 - bundled multilingual MiniLM product/category classification.
  */
 class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
 
@@ -59,15 +59,19 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
             .onFailure { Log.e(TAG, "MLKit OCR failed: ${it.message}") }
         val engineResult = engineAttempt.getOrNull()
         val rawOcrText = engineResult?.rawText.orEmpty()
-        val reconstructedOcrText = engineResult?.let {
-            ReceiptLayoutReconstructor.reconstruct(it.lines, it.rawText)
-        }.orEmpty()
+        val receiptDocument = engineResult?.let {
+            ReceiptLayoutReconstructor.reconstructDocument(it.lines, it.rawText)
+        }
+        val reconstructedOcrText = receiptDocument?.asText().orEmpty()
 
         // Bundled multilingual MiniLM is primary and requires no network or translation pack.
         if (reconstructedOcrText.isNotBlank()) {
             val localStart = System.currentTimeMillis()
             val localResult = runCatching {
-                LocalReceiptAnalyzer(context.applicationContext).analyze(reconstructedOcrText)
+                LocalReceiptAnalyzer(context.applicationContext).analyze(
+                    reconstructedOcrText,
+                    receiptDocument
+                )
             }.onFailure { Log.w(TAG, "Local MiniLM exception: ${it.message}") }.getOrNull()
             if (localResult != null) {
                 val semanticElapsed = System.currentTimeMillis() - localStart
@@ -83,13 +87,14 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
                     amount = SemanticAmountSelector.select(
                         semanticModelAmount = localResult.totalAmount?.toLong(),
                         reconstructedOcrText = reconstructedOcrText,
-                        rawOcrText = rawOcrText
+                        rawOcrText = rawOcrText,
+                        receiptDocument = receiptDocument
                     ),
                     categoryId = localResult.categoryId,
                     ocrText = rawOcrText,
                     labels = emptyList(),
-                    needsReview = false,
-                    reviewFields = emptyList(),
+                    needsReview = localResult.needsUserReview,
+                    reviewFields = localResult.reviewFields,
                     ocrEngine = "mlkit+minilm-multilingual-local",
                     ocrConfidence = localResult.confidence.toFloat(),
                     ocrElapsedMs = totalElapsed
@@ -145,7 +150,8 @@ class ExpenseAnalyzer(private val engineSelector: OcrEngineSelector? = null) {
         val semanticAmount = SemanticAmountSelector.select(
             semanticModelAmount = null,
             reconstructedOcrText = reconstructedOcrText,
-            rawOcrText = engineResult.rawText
+            rawOcrText = engineResult.rawText,
+            receiptDocument = receiptDocument
         )
 
         return ExpenseSuggestion(
