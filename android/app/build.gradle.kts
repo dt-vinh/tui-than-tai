@@ -146,6 +146,7 @@ if (isDeviceBenchmark) {
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
+    val cameraXVersion = "1.6.1"
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
@@ -163,9 +164,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
-    implementation("androidx.camera:camera-camera2:1.3.4")
-    implementation("androidx.camera:camera-lifecycle:1.3.4")
-    implementation("androidx.camera:camera-view:1.3.4")
+    implementation("androidx.camera:camera-camera2:$cameraXVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraXVersion")
+    implementation("androidx.camera:camera-view:$cameraXVersion")
 
     implementation("androidx.room:room-runtime:2.7.2")
     implementation("androidx.room:room-ktx:2.7.2")
@@ -186,7 +187,7 @@ dependencies {
     // Quantized multilingual semantic model and its fully offline tokenizer.
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
     implementation("ai.djl.huggingface:tokenizers:0.33.0")
-    runtimeOnly("ai.djl.android:tokenizer-native:0.33.0")
+    runtimeOnly(files("libs/tokenizer-native-0.33.0-16k.aar"))
 
     // Google Sign-In + Drive backup
     implementation("com.google.android.gms:play-services-auth:21.2.0")
