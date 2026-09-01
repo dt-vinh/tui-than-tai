@@ -68,8 +68,8 @@ android {
         applicationId = "com.stevejobvnAIstudio.tuithantai"
         minSdk = 26
         targetSdk = 36
-        versionCode = 19
-        versionName = "0.19.0"
+        versionCode = 20
+        versionName = "0.20.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "DEFAULT_API_BASE_URL", "\"https://api.your-domain.com\"")
         buildConfigField(
@@ -136,6 +136,14 @@ android {
 
     androidResources {
         noCompress += "onnx"
+    }
+
+    lint {
+        // AGP 8.9.2's Compose detector cannot read Kotlin 2.2 metadata and crashes lint.
+        disable += listOf(
+            "CoroutineCreationDuringComposition",
+            "StateFlowValueCalledInComposition"
+        )
     }
 }
 

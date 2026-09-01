@@ -329,7 +329,7 @@ class LuckyWalletViewModel(application: Application) : AndroidViewModel(applicat
                 val oldToken = _driveAccessToken.value
                 if (oldToken != null) {
                     try {
-                        com.google.android.gms.auth.GoogleAuthUtil.invalidateToken(context, oldToken)
+                        com.google.android.gms.auth.GoogleAuthUtil.clearToken(context, oldToken)
                     } catch (_: Exception) {}
                 }
                 val token = com.google.android.gms.auth.GoogleAuthUtil.getToken(

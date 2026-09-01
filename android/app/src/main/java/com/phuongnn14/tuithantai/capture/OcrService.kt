@@ -26,7 +26,7 @@ class OcrService {
         return MlKitMultilingualRecognizer.recognize(image).text.text
     }
 
-    @OptIn(ExperimentalGetImage::class)
+    @androidx.annotation.OptIn(markerClass = [ExperimentalGetImage::class])
     suspend fun recognizeImageProxy(imageProxy: ImageProxy): String {
         val mediaImage = imageProxy.image ?: return ""
         val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)

@@ -1,0 +1,26 @@
+# Tui Than Tai Android v0.20.0
+
+- Version code: `20`
+- Version name: `0.20.0`
+- Package: `com.stevejobvnAIstudio.tuithantai`
+- Compile SDK: `36`
+- Target SDK: `36` (Android 16)
+- Artifact: `tui-than-tai-aab20.aab`
+- Build command: `./gradlew :app:bundleRelease`
+- Source branch: `restore-installed-v0.7.0`
+- Release focus: 16 KB native page support and R8/resource shrinking
+- CameraX: `1.6.1`
+- DJL tokenizer source: `v0.33.0` at `39f5fa8b2e4e362613379caf8e6715a08ea93cac`
+- DJL tokenizer AAR SHA-256: `225fcfcf5463388e99182256cdd0b2fa6a6be6eeb4d217051655179f16e469f0`
+- JVM verification: `224` test cases passed in both debug and release (`448` executions, no failures)
+- Lint verification: `lintRelease` passed; two crashing Compose metadata detectors are disabled for AGP 8.9.2 and Kotlin 2.2 compatibility
+- Instrumentation verification: debug AndroidTest APK compiled successfully
+- Runtime verification: pending; no physical ADB device was connected and the API 35 emulator could not run without the Android Emulator Hypervisor Driver
+- Tokenizer runtime parity: pending an Android runtime; the exact DJL source commit is pinned and all four rebuilt ABI binaries are packaged
+- Native verification: all `16` arm64-v8a and x86_64 libraries have every `PT_LOAD.p_align >= 0x4000`
+- Bundle verification: BundleTool `1.17.2` reports `PAGE_ALIGNMENT_16K`
+- APK verification: universal APK generated from this bundle passed `zipalign -c -P 16 -v 4`
+- R8 outputs: `mapping.txt`, `seeds.txt`, and `usage.txt` are archived in this directory
+- File size: `177091562` bytes
+- SHA-256: `a4fbff282aab9096252d8f67d82ef6495ed392bd27f2ae503324a9da7a790ad5`
+- Upload certificate SHA-1: `27:DC:8A:0B:4D:F6:ED:AF:68:08:AB:E0:FD:D5:8C:7F:B3:EF:F7:78`
